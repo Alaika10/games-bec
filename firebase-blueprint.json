@@ -1,0 +1,412 @@
+{
+  "entities": {
+    "Session": {
+      "title": "Session",
+      "description": "Public state and scoring rules for an escape room game session.",
+      "type": "object",
+      "properties": {
+        "sessionCode": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 4,
+          "pattern": "^[0-9]{4}$",
+          "description": "4-digit numeric code used by teams to join."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Session display title."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["waiting", "running", "paused", "ended"],
+          "description": "Current lifecycle status of the session."
+        },
+        "durationSeconds": {
+          "type": "integer",
+          "description": "Total timer duration in seconds (default 5100 for 85 minutes)."
+        },
+        "remainingSecondsAtPause": {
+          "type": "integer",
+          "description": "Remaining timer seconds when paused or waiting."
+        },
+        "startedAtMs": {
+          "type": "integer",
+          "description": "Epoch milliseconds when timer last started or resumed; 0 if not running."
+        },
+        "endedAtMs": {
+          "type": "integer",
+          "description": "Epoch milliseconds when session ended; 0 if active."
+        },
+        "pointsCorrect": {
+          "type": "integer",
+          "description": "Points awarded for a correct key."
+        },
+        "pointsFastest": {
+          "type": "integer",
+          "description": "Bonus points for first team solving a sheet."
+        },
+        "pointsFinalFirst": {
+          "type": "integer",
+          "description": "Bonus points for first team solving the final word."
+        },
+        "pointsWrong": {
+          "type": "integer",
+          "description": "Point delta for an incorrect key (typically negative)."
+        },
+        "pointsHint": {
+          "type": "integer",
+          "description": "Point delta for an approved hint (typically negative)."
+        },
+        "pointsEmergency": {
+          "type": "integer",
+          "description": "Point delta for an approved emergency key (typically negative)."
+        },
+        "totalSheets": {
+          "type": "integer",
+          "description": "Number of reading sheets in the game (default 5)."
+        },
+        "lastEventId": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Unique identifier for the latest broadcast event."
+        },
+        "lastEventType": {
+          "type": "string",
+          "enum": ["none", "unlock", "vault", "status"],
+          "description": "Type of latest projector banner event."
+        },
+        "lastEventTeam": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Team name associated with the latest broadcast event."
+        },
+        "lastEventMessage": {
+          "type": "string",
+          "maxLength": 160,
+          "description": "Human-readable projector banner text."
+        },
+        "lastEventAtMs": {
+          "type": "integer",
+          "description": "Epoch milliseconds of the latest broadcast event."
+        },
+        "createdAtMs": {
+          "type": "integer",
+          "description": "Creation epoch milliseconds."
+        },
+        "updatedAtMs": {
+          "type": "integer",
+          "description": "Last update epoch milliseconds."
+        }
+      },
+      "required": [
+        "sessionCode",
+        "title",
+        "status",
+        "durationSeconds",
+        "remainingSecondsAtPause",
+        "startedAtMs",
+        "endedAtMs",
+        "pointsCorrect",
+        "pointsFastest",
+        "pointsFinalFirst",
+        "pointsWrong",
+        "pointsHint",
+        "pointsEmergency",
+        "totalSheets",
+        "lastEventId",
+        "lastEventType",
+        "lastEventTeam",
+        "lastEventMessage",
+        "lastEventAtMs",
+        "createdAtMs",
+        "updatedAtMs"
+      ]
+    },
+    "ServerGate": {
+      "title": "ServerGate",
+      "description": "Server-only atomic write gate document to prevent unauthorized direct client mutations.",
+      "type": "object",
+      "properties": {
+        "gateToken": {
+          "type": "string",
+          "minLength": 32,
+          "maxLength": 128,
+          "description": "Server-derived HMAC token."
+        },
+        "nonce": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 64,
+          "description": "Monotonic/random nonce rotated on every server write."
+        },
+        "updatedAtMs": {
+          "type": "integer",
+          "description": "Last update epoch milliseconds."
+        }
+      },
+      "required": ["gateToken", "nonce", "updatedAtMs"]
+    },
+    "SessionSecret": {
+      "title": "SessionSecret",
+      "description": "Encrypted server-only configuration containing sheet codes, normalized keys, hint texts, and admin PIN hash.",
+      "type": "object",
+      "properties": {
+        "adminPinHash": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 200,
+          "description": "Hashed admin PIN."
+        },
+        "sheetsCipher": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 20000,
+          "description": "AES-256-GCM encrypted sheet configuration."
+        },
+        "fastest1": { "type": "string", "maxLength": 128 },
+        "fastest2": { "type": "string", "maxLength": 128 },
+        "fastest3": { "type": "string", "maxLength": 128 },
+        "fastest4": { "type": "string", "maxLength": 128 },
+        "fastest5": { "type": "string", "maxLength": 128 },
+        "updatedAtMs": { "type": "integer" }
+      },
+      "required": [
+        "adminPinHash",
+        "sheetsCipher",
+        "fastest1",
+        "fastest2",
+        "fastest3",
+        "fastest4",
+        "fastest5",
+        "updatedAtMs"
+      ]
+    },
+    "Group": {
+      "title": "Group",
+      "description": "Public team scoreboard and progress state.",
+      "type": "object",
+      "properties": {
+        "teamName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "members": {
+          "type": "array",
+          "description": "2 to 5 team member names."
+        },
+        "points": {
+          "type": "integer",
+          "description": "Current computed score (>= 0)."
+        },
+        "currentSheet": {
+          "type": "integer",
+          "description": "Current active sheet number (1..5, or 6 when finished)."
+        },
+        "completedSheets": {
+          "type": "integer",
+          "description": "Count of completed sheets (0..5)."
+        },
+        "finishedAtMs": {
+          "type": "integer",
+          "description": "Completion timestamp in epoch ms, 0 if unfinished."
+        },
+        "lastActivityText": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "lastActivityAtMs": {
+          "type": "integer"
+        },
+        "cooldownUntilMs": {
+          "type": "integer"
+        },
+        "lastSubmitAtMs": {
+          "type": "integer"
+        },
+        "createdAtMs": {
+          "type": "integer"
+        },
+        "updatedAtMs": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "teamName",
+        "members",
+        "points",
+        "currentSheet",
+        "completedSheets",
+        "finishedAtMs",
+        "lastActivityText",
+        "lastActivityAtMs",
+        "cooldownUntilMs",
+        "lastSubmitAtMs",
+        "createdAtMs",
+        "updatedAtMs"
+      ]
+    },
+    "GroupPrivate": {
+      "title": "GroupPrivate",
+      "description": "Encrypted per-group secrets (reconnect code, unlocked hints, unlocked emergency keys).",
+      "type": "object",
+      "properties": {
+        "groupCodeHash": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 128
+        },
+        "groupCodeCipher": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 256
+        },
+        "unlockedHintsCipher": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 10000
+        },
+        "unlockedEmergencyCipher": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 10000
+        },
+        "updatedAtMs": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "groupCodeHash",
+        "groupCodeCipher",
+        "unlockedHintsCipher",
+        "unlockedEmergencyCipher",
+        "updatedAtMs"
+      ]
+    },
+    "HelpRequest": {
+      "title": "HelpRequest",
+      "description": "Hint or emergency key approval request from a group to admin.",
+      "type": "object",
+      "properties": {
+        "groupId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "teamName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "type": {
+          "type": "string",
+          "enum": ["hint", "emergency"]
+        },
+        "sheetNumber": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "createdAtMs": {
+          "type": "integer"
+        },
+        "resolvedAtMs": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "groupId",
+        "teamName",
+        "type",
+        "sheetNumber",
+        "status",
+        "createdAtMs",
+        "resolvedAtMs"
+      ]
+    },
+    "PointLog": {
+      "title": "PointLog",
+      "description": "Immutable activity and point delta ledger entry.",
+      "type": "object",
+      "properties": {
+        "groupId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "teamName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "delta": {
+          "type": "integer"
+        },
+        "balanceAfter": {
+          "type": "integer"
+        },
+        "sheetNumber": {
+          "type": "integer"
+        },
+        "createdAtMs": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "groupId",
+        "teamName",
+        "action",
+        "reason",
+        "delta",
+        "balanceAfter",
+        "sheetNumber",
+        "createdAtMs"
+      ]
+    }
+  },
+  "firestore": {
+    "/sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/Session" },
+      "description": "Active and historical escape room sessions."
+    },
+    "/sessions/{sessionId}/server_gate/{gateId}": {
+      "schema": { "$ref": "#/entities/ServerGate" },
+      "description": "Server-only write gate token for atomic batch verification."
+    },
+    "/sessions/{sessionId}/secrets/{secretId}": {
+      "schema": { "$ref": "#/entities/SessionSecret" },
+      "description": "Encrypted answer keys, sheet codes, hints, and admin PIN hash."
+    },
+    "/sessions/{sessionId}/groups/{groupId}": {
+      "schema": { "$ref": "#/entities/Group" },
+      "description": "Public leaderboard and team progress documents."
+    },
+    "/sessions/{sessionId}/group_private/{groupId}": {
+      "schema": { "$ref": "#/entities/GroupPrivate" },
+      "description": "Encrypted per-group reconnect codes and unlocked hints/emergency keys."
+    },
+    "/sessions/{sessionId}/requests/{requestId}": {
+      "schema": { "$ref": "#/entities/HelpRequest" },
+      "description": "Queue of hint and emergency key requests."
+    },
+    "/sessions/{sessionId}/logs/{logId}": {
+      "schema": { "$ref": "#/entities/PointLog" },
+      "description": "Append-only point and activity ledger."
+    }
+  }
+}

@@ -1,0 +1,261 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function gatePath(sessionId) {
+      return /databases/$(database)/documents/sessions/$(sessionId)/server_gate/main;
+    }
+
+    function gateRotated(sessionId) {
+      return getAfter(gatePath(sessionId)).data.nonce != get(gatePath(sessionId)).data.nonce;
+    }
+
+    function isValidGate(data) {
+      return data.keys().hasAll(['gateToken', 'nonce', 'updatedAtMs'])
+        && data.keys().hasOnly(['gateToken', 'nonce', 'updatedAtMs'])
+        && data.gateToken is string && data.gateToken.size() >= 32 && data.gateToken.size() <= 128
+        && data.nonce is string && data.nonce.size() >= 8 && data.nonce.size() <= 64
+        && data.updatedAtMs is int && data.updatedAtMs > 0;
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll([
+          'sessionCode', 'title', 'status', 'durationSeconds', 'remainingSecondsAtPause',
+          'startedAtMs', 'endedAtMs', 'pointsCorrect', 'pointsFastest', 'pointsFinalFirst',
+          'pointsWrong', 'pointsHint', 'pointsEmergency', 'totalSheets',
+          'lastEventId', 'lastEventType', 'lastEventTeam', 'lastEventMessage',
+          'lastEventAtMs', 'createdAtMs', 'updatedAtMs'
+        ])
+        && data.keys().hasOnly([
+          'sessionCode', 'title', 'status', 'durationSeconds', 'remainingSecondsAtPause',
+          'startedAtMs', 'endedAtMs', 'pointsCorrect', 'pointsFastest', 'pointsFinalFirst',
+          'pointsWrong', 'pointsHint', 'pointsEmergency', 'totalSheets',
+          'lastEventId', 'lastEventType', 'lastEventTeam', 'lastEventMessage',
+          'lastEventAtMs', 'createdAtMs', 'updatedAtMs'
+        ])
+        && data.sessionCode is string && data.sessionCode.size() == 4 && data.sessionCode.matches('^[0-9]{4}$')
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 100
+        && data.status is string && data.status in ['waiting', 'running', 'paused', 'ended']
+        && data.durationSeconds is int && data.durationSeconds >= 60 && data.durationSeconds <= 86400
+        && data.remainingSecondsAtPause is int && data.remainingSecondsAtPause >= 0 && data.remainingSecondsAtPause <= 86400
+        && data.startedAtMs is int && data.startedAtMs >= 0
+        && data.endedAtMs is int && data.endedAtMs >= 0
+        && data.pointsCorrect is int && data.pointsCorrect >= 0 && data.pointsCorrect <= 1000
+        && data.pointsFastest is int && data.pointsFastest >= 0 && data.pointsFastest <= 1000
+        && data.pointsFinalFirst is int && data.pointsFinalFirst >= 0 && data.pointsFinalFirst <= 1000
+        && data.pointsWrong is int && data.pointsWrong >= -1000 && data.pointsWrong <= 0
+        && data.pointsHint is int && data.pointsHint >= -1000 && data.pointsHint <= 0
+        && data.pointsEmergency is int && data.pointsEmergency >= -1000 && data.pointsEmergency <= 0
+        && data.totalSheets is int && data.totalSheets >= 1 && data.totalSheets <= 10
+        && data.lastEventId is string && data.lastEventId.size() <= 64
+        && data.lastEventType is string && data.lastEventType in ['none', 'unlock', 'vault', 'status']
+        && data.lastEventTeam is string && data.lastEventTeam.size() <= 50
+        && data.lastEventMessage is string && data.lastEventMessage.size() <= 160
+        && data.lastEventAtMs is int && data.lastEventAtMs >= 0
+        && data.createdAtMs is int && data.createdAtMs > 0
+        && data.updatedAtMs is int && data.updatedAtMs > 0;
+    }
+
+    function isValidSecret(data) {
+      return data.keys().hasAll([
+          'adminPinHash', 'sheetsCipher', 'fastest1', 'fastest2', 'fastest3',
+          'fastest4', 'fastest5', 'updatedAtMs'
+        ])
+        && data.keys().hasOnly([
+          'adminPinHash', 'sheetsCipher', 'fastest1', 'fastest2', 'fastest3',
+          'fastest4', 'fastest5', 'updatedAtMs'
+        ])
+        && data.adminPinHash is string && data.adminPinHash.size() >= 16 && data.adminPinHash.size() <= 200
+        && data.sheetsCipher is string && data.sheetsCipher.size() >= 16 && data.sheetsCipher.size() <= 20000
+        && data.fastest1 is string && data.fastest1.size() <= 128
+        && data.fastest2 is string && data.fastest2.size() <= 128
+        && data.fastest3 is string && data.fastest3.size() <= 128
+        && data.fastest4 is string && data.fastest4.size() <= 128
+        && data.fastest5 is string && data.fastest5.size() <= 128
+        && data.updatedAtMs is int && data.updatedAtMs > 0;
+    }
+
+    function isValidGroup(data) {
+      return data.keys().hasAll([
+          'teamName', 'members', 'points', 'currentSheet', 'completedSheets',
+          'finishedAtMs', 'lastActivityText', 'lastActivityAtMs',
+          'cooldownUntilMs', 'lastSubmitAtMs', 'createdAtMs', 'updatedAtMs'
+        ])
+        && data.keys().hasOnly([
+          'teamName', 'members', 'points', 'currentSheet', 'completedSheets',
+          'finishedAtMs', 'lastActivityText', 'lastActivityAtMs',
+          'cooldownUntilMs', 'lastSubmitAtMs', 'createdAtMs', 'updatedAtMs'
+        ])
+        && data.teamName is string && data.teamName.size() >= 1 && data.teamName.size() <= 50
+        && data.members is list && data.members.size() >= 2 && data.members.size() <= 5
+        && data.members[0] is string && data.members[0].size() >= 1 && data.members[0].size() <= 40
+        && data.points is int && data.points >= 0 && data.points <= 100000
+        && data.currentSheet is int && data.currentSheet >= 1 && data.currentSheet <= 6
+        && data.completedSheets is int && data.completedSheets >= 0 && data.completedSheets <= 5
+        && data.finishedAtMs is int && data.finishedAtMs >= 0
+        && data.lastActivityText is string && data.lastActivityText.size() <= 160
+        && data.lastActivityAtMs is int && data.lastActivityAtMs >= 0
+        && data.cooldownUntilMs is int && data.cooldownUntilMs >= 0
+        && data.lastSubmitAtMs is int && data.lastSubmitAtMs >= 0
+        && data.createdAtMs is int && data.createdAtMs > 0
+        && data.updatedAtMs is int && data.updatedAtMs > 0;
+    }
+
+    function isValidGroupPrivate(data) {
+      return data.keys().hasAll([
+          'groupCodeHash', 'groupCodeCipher', 'unlockedHintsCipher',
+          'unlockedEmergencyCipher', 'updatedAtMs'
+        ])
+        && data.keys().hasOnly([
+          'groupCodeHash', 'groupCodeCipher', 'unlockedHintsCipher',
+          'unlockedEmergencyCipher', 'updatedAtMs'
+        ])
+        && data.groupCodeHash is string && data.groupCodeHash.size() >= 16 && data.groupCodeHash.size() <= 128
+        && data.groupCodeCipher is string && data.groupCodeCipher.size() >= 16 && data.groupCodeCipher.size() <= 256
+        && data.unlockedHintsCipher is string && data.unlockedHintsCipher.size() >= 16 && data.unlockedHintsCipher.size() <= 10000
+        && data.unlockedEmergencyCipher is string && data.unlockedEmergencyCipher.size() >= 16 && data.unlockedEmergencyCipher.size() <= 10000
+        && data.updatedAtMs is int && data.updatedAtMs > 0;
+    }
+
+    function isValidRequest(data) {
+      return data.keys().hasAll([
+          'groupId', 'teamName', 'type', 'sheetNumber', 'status', 'createdAtMs', 'resolvedAtMs'
+        ])
+        && data.keys().hasOnly([
+          'groupId', 'teamName', 'type', 'sheetNumber', 'status', 'createdAtMs', 'resolvedAtMs'
+        ])
+        && isValidId(data.groupId)
+        && data.teamName is string && data.teamName.size() >= 1 && data.teamName.size() <= 50
+        && data.type is string && data.type in ['hint', 'emergency']
+        && data.sheetNumber is int && data.sheetNumber >= 1 && data.sheetNumber <= 5
+        && data.status is string && data.status in ['pending', 'approved', 'rejected']
+        && data.createdAtMs is int && data.createdAtMs > 0
+        && data.resolvedAtMs is int && data.resolvedAtMs >= 0;
+    }
+
+    function isValidLog(data) {
+      return data.keys().hasAll([
+          'groupId', 'teamName', 'action', 'reason', 'delta', 'balanceAfter', 'sheetNumber', 'createdAtMs'
+        ])
+        && data.keys().hasOnly([
+          'groupId', 'teamName', 'action', 'reason', 'delta', 'balanceAfter', 'sheetNumber', 'createdAtMs'
+        ])
+        && isValidId(data.groupId)
+        && data.teamName is string && data.teamName.size() >= 1 && data.teamName.size() <= 50
+        && data.action is string && data.action.size() >= 1 && data.action.size() <= 160
+        && data.reason is string && data.reason.size() <= 200
+        && data.delta is int && data.delta >= -1000 && data.delta <= 1000
+        && data.balanceAfter is int && data.balanceAfter >= 0 && data.balanceAfter <= 100000
+        && data.sheetNumber is int && data.sheetNumber >= 0 && data.sheetNumber <= 5
+        && data.createdAtMs is int && data.createdAtMs > 0;
+    }
+
+    match /test/connection {
+      allow get: if true;
+      allow write: if false;
+    }
+
+    match /sessions/{sessionId} {
+      allow get: if isValidId(sessionId);
+      allow list: if request.time != null;
+      allow create: if isValidId(sessionId)
+        && isValidSession(incoming())
+        && existsAfter(gatePath(sessionId));
+      allow update: if isValidId(sessionId)
+        && isValidSession(incoming())
+        && incoming().createdAtMs == existing().createdAtMs
+        && gateRotated(sessionId);
+      allow delete: if isValidId(sessionId) && gateRotated(sessionId);
+
+      match /server_gate/{gateId} {
+        allow read: if false;
+        allow create: if gateId == 'main' && !exists(gatePath(sessionId)) && isValidGate(incoming());
+        allow update: if gateId == 'main'
+          && isValidGate(incoming())
+          && incoming().gateToken == existing().gateToken
+          && incoming().nonce != existing().nonce;
+        allow delete: if false;
+      }
+
+      match /secrets/{secretId} {
+        allow get: if isValidId(sessionId) && secretId == 'config';
+        allow list: if false;
+        allow create: if isValidId(sessionId) && secretId == 'config'
+          && isValidSecret(incoming())
+          && existsAfter(gatePath(sessionId));
+        allow update: if isValidId(sessionId) && secretId == 'config'
+          && isValidSecret(incoming())
+          && gateRotated(sessionId);
+        allow delete: if false;
+      }
+
+      match /groups/{groupId} {
+        allow get: if isValidId(sessionId) && isValidId(groupId);
+        allow list: if isValidId(sessionId) && request.time != null;
+        allow create: if isValidId(sessionId) && isValidId(groupId)
+          && isValidGroup(incoming())
+          && gateRotated(sessionId);
+        allow update: if isValidId(sessionId) && isValidId(groupId)
+          && isValidGroup(incoming())
+          && incoming().createdAtMs == existing().createdAtMs
+          && gateRotated(sessionId);
+        allow delete: if isValidId(sessionId) && isValidId(groupId)
+          && gateRotated(sessionId);
+      }
+
+      match /group_private/{groupId} {
+        allow get: if isValidId(sessionId) && isValidId(groupId);
+        allow list: if false;
+        allow create: if isValidId(sessionId) && isValidId(groupId)
+          && isValidGroupPrivate(incoming())
+          && gateRotated(sessionId);
+        allow update: if isValidId(sessionId) && isValidId(groupId)
+          && isValidGroupPrivate(incoming())
+          && gateRotated(sessionId);
+        allow delete: if isValidId(sessionId) && isValidId(groupId)
+          && gateRotated(sessionId);
+      }
+
+      match /requests/{requestId} {
+        allow get: if isValidId(sessionId) && isValidId(requestId);
+        allow list: if isValidId(sessionId) && request.time != null;
+        allow create: if isValidId(sessionId) && isValidId(requestId)
+          && isValidRequest(incoming())
+          && gateRotated(sessionId);
+        allow update: if isValidId(sessionId) && isValidId(requestId)
+          && isValidRequest(incoming())
+          && incoming().createdAtMs == existing().createdAtMs
+          && gateRotated(sessionId);
+        allow delete: if isValidId(sessionId) && isValidId(requestId)
+          && gateRotated(sessionId);
+      }
+
+      match /logs/{logId} {
+        allow get: if isValidId(sessionId) && isValidId(logId);
+        allow list: if isValidId(sessionId) && request.time != null;
+        allow create: if isValidId(sessionId) && isValidId(logId)
+          && isValidLog(incoming())
+          && gateRotated(sessionId);
+        allow update: if false;
+        allow delete: if isValidId(sessionId) && isValidId(logId)
+          && gateRotated(sessionId);
+      }
+    }
+  }
+}

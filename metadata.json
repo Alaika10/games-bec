@@ -1,0 +1,6 @@
+{
+  "name": "HACK THE SYSTEM: Reading Escape Room",
+  "description": "Aplikasi lomba membaca bahasa Inggris berkelompok bergaya terminal hacker dengan papan skor real-time, tampilan proyektor, dan kontrol admin.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
