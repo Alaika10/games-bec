@@ -66,19 +66,104 @@ function playTone(
   osc.stop(now + duration + 0.02);
 }
 
+const FEMALE_VOICE_HINTS = [
+  'gadis',
+  'damayanti',
+  'google bahasa indonesia',
+  'female',
+  'woman',
+  'wanita',
+  'perempuan',
+  'putri',
+  'siti',
+  'ayu',
+  'wati',
+  'lestari',
+  'cinta',
+  'maya',
+  'indah',
+  'ratna',
+  'dewi',
+  'nisa',
+  'sari',
+  'aria',
+  'jenny',
+  'zira',
+  'samantha',
+  'karen',
+  'victoria',
+];
+
+const MALE_VOICE_HINTS = [
+  'ardi',
+  'andika',
+  'rizky',
+  'budi',
+  'male',
+  'man',
+  'pria',
+  'laki',
+  'david',
+  'mark',
+  'daniel',
+  'alex',
+];
+
+function pickIndonesianFemaleVoice(voices: SpeechSynthesisVoice[]): {
+  voice: SpeechSynthesisVoice | null;
+  confirmedFemale: boolean;
+} {
+  const idVoices = voices.filter(
+    (v) =>
+      v.lang.toLowerCase().startsWith('id') ||
+      v.name.toLowerCase().includes('indonesia')
+  );
+  if (idVoices.length === 0) {
+    const anyFemale = voices.find((v) =>
+      FEMALE_VOICE_HINTS.some((kw) => v.name.toLowerCase().includes(kw))
+    );
+    return { voice: anyFemale || null, confirmedFemale: Boolean(anyFemale) };
+  }
+
+  const explicitFemale = idVoices.find((v) =>
+    FEMALE_VOICE_HINTS.some((kw) => v.name.toLowerCase().includes(kw))
+  );
+  if (explicitFemale) {
+    return { voice: explicitFemale, confirmedFemale: true };
+  }
+
+  const nonMale = idVoices.find(
+    (v) => !MALE_VOICE_HINTS.some((kw) => v.name.toLowerCase().includes(kw))
+  );
+  if (nonMale) {
+    return { voice: nonMale, confirmedFemale: false };
+  }
+
+  return { voice: idVoices[0], confirmedFemale: false };
+}
+
 function speakIndonesian(text: string, ignoreMute = false): void {
-  if ((mutedState && !ignoreMute) || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  if (
+    (mutedState && !ignoreMute) ||
+    typeof window === 'undefined' ||
+    !('speechSynthesis' in window)
+  ) {
+    return;
+  }
   try {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'id-ID';
-    utterance.rate = 1.05;
-    utterance.pitch = 1.0;
+    utterance.rate = 1.03;
+
     const voices = window.speechSynthesis.getVoices();
-    const idVoice = voices.find((v) => v.lang.toLowerCase().startsWith('id'));
-    if (idVoice) {
-      utterance.voice = idVoice;
+    const { voice, confirmedFemale } = pickIndonesianFemaleVoice(voices);
+    if (voice) {
+      utterance.voice = voice;
     }
+    // Slightly higher pitch ensures a natural female tone even on fallback voices
+    utterance.pitch = confirmedFemale ? 1.08 : 1.24;
+
     window.speechSynthesis.speak(utterance);
   } catch {
     // ignore speech failures on restricted browsers
@@ -102,7 +187,7 @@ export async function activateAudioEngine(): Promise<boolean> {
     playTone(880, 0.09, 0.15, 'sine', 0.2);
   }
 
-  // Prime Web Speech API gently
+  // Prime Web Speech API gently so voice list (including female voices) is ready
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     try {
       window.speechSynthesis.getVoices();
@@ -209,4 +294,48 @@ export function playAdminWrongSound(teamName: string): void {
   setTimeout(() => {
     speakIndonesian(`${safeName}, kode salah!`, true);
   }, 260);
+}
+
+export function playAdminTimeWarningSound(
+  stage: '5m' | '1m' | '30s' | '0s'
+): void {
+  if (stage === '5m') {
+    playTone(587.33, 0, 0.14, 'triangle', 0.22, true);
+    playTone(783.99, 0.16, 0.22, 'triangle', 0.22, true);
+    setTimeout(() => {
+      speakIndonesian('Perhatian! Sisa waktu tinggal lima menit lagi.', true);
+    }, 320);
+    return;
+  }
+
+  if (stage === '1m') {
+    playTone(783.99, 0, 0.12, 'triangle', 0.24, true);
+    playTone(587.33, 0.14, 0.12, 'triangle', 0.24, true);
+    playTone(783.99, 0.28, 0.24, 'triangle', 0.24, true);
+    setTimeout(() => {
+      speakIndonesian(
+        'Perhatian! Waktu hampir habis, tersisa satu menit lagi.',
+        true
+      );
+    }, 420);
+    return;
+  }
+
+  if (stage === '30s') {
+    playTone(880, 0, 0.1, 'sine', 0.24, true);
+    playTone(880, 0.15, 0.1, 'sine', 0.24, true);
+    playTone(880, 0.3, 0.2, 'sine', 0.24, true);
+    setTimeout(() => {
+      speakIndonesian('Perhatian! Tiga puluh detik terakhir.', true);
+    }, 420);
+    return;
+  }
+
+  // stage === '0s'
+  playTone(440, 0, 0.2, 'sawtooth', 0.22, true);
+  playTone(329.63, 0.22, 0.2, 'sawtooth', 0.22, true);
+  playTone(261.63, 0.44, 0.42, 'sawtooth', 0.22, true);
+  setTimeout(() => {
+    speakIndonesian('Waktu sesi telah habis!', true);
+  }, 560);
 }

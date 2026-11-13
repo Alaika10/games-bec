@@ -11,8 +11,9 @@ export function ProgressDots({
   total = 5,
   size = 'sm',
 }: ProgressDotsProps) {
-  const dotSize = size === 'lg' ? 'w-4 h-4 sm:w-5 sm:h-5' : 'w-3 h-3';
-  const gapSize = size === 'lg' ? 'gap-2.5 sm:gap-3' : 'gap-1.5';
+  const pipSize =
+    size === 'lg' ? 'w-5 h-2.5 sm:w-6 sm:h-3' : 'w-3.5 h-2';
+  const gapSize = size === 'lg' ? 'gap-2 sm:gap-2.5' : 'gap-1.5';
 
   return (
     <div
@@ -24,10 +25,10 @@ export function ProgressDots({
         return (
           <span
             key={idx}
-            className={`${dotSize} rounded-full transition-colors duration-200 ${
+            className={`${pipSize} rounded-[3px] transition-colors duration-200 ${
               done
-                ? 'bg-[#22FF88] shadow-[0_0_10px_rgba(34,255,136,0.65)]'
-                : 'bg-[#122018] border border-[#243B2E]'
+                ? 'bg-[#22FF88] shadow-[0_0_8px_rgba(34,255,136,0.45)]'
+                : 'bg-[#101914] border border-[#26382E]'
             }`}
           />
         );

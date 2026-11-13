@@ -24,6 +24,7 @@ import {
   Volume2,
   CheckCircle2,
   ShieldAlert,
+  Clock,
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType, testFirestoreConnection } from '@/lib/firebase';
 import {
@@ -36,6 +37,7 @@ import {
   activateAudioEngine,
   isAudioUnlocked,
   playAdminCorrectSound,
+  playAdminTimeWarningSound,
   playAdminWrongSound,
 } from '@/lib/sound';
 import { AdminSessionPayload, PointLogDoc, SheetConfigItem } from '@/lib/types';
@@ -75,7 +77,7 @@ export function AdminDashboard() {
   const [audioReady, setAudioReady] = useState(() => isAudioUnlocked());
   const [liveAlert, setLiveAlert] = useState<{
     id: string;
-    kind: 'correct' | 'wrong';
+    kind: 'correct' | 'wrong' | 'warning';
     title: string;
     detail: string;
   } | null>(null);
@@ -83,6 +85,8 @@ export function AdminDashboard() {
   const seenLogIdsRef = useRef<Set<string>>(new Set());
   const logsInitSessionRef = useRef<string>('');
   const alertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const firedTimeWarningsRef = useRef<Set<string>>(new Set());
+  const prevRemainingRef = useRef<number | null>(null);
 
   // Modals / Inline Forms
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -514,19 +518,108 @@ export function AdminDashboard() {
     ? computeRemainingSeconds(adminData.session, nowMs + serverOffsetMs)
     : 0;
 
+  const activeSessionId = adminData?.session.id ?? '';
+  const activeSessionStatus = adminData?.session.status ?? 'waiting';
+  const activeSessionStartedAt = adminData?.session.startedAtMs ?? 0;
+  const activeSessionDuration = adminData?.session.durationSeconds ?? 0;
+
+  useEffect(() => {
+    if (!activeSessionId || activeSessionStatus !== 'running') {
+      if (activeSessionStatus === 'waiting') {
+        firedTimeWarningsRef.current.clear();
+      }
+      prevRemainingRef.current = null;
+      return;
+    }
+
+    const prevRem = prevRemainingRef.current;
+    prevRemainingRef.current = remainingSec;
+
+    const triggerWarning = (
+      stage: '5m' | '1m' | '30s' | '0s',
+      title: string,
+      detail: string
+    ) => {
+      const key = `${activeSessionId}:${activeSessionStartedAt}:${stage}`;
+      if (firedTimeWarningsRef.current.has(key)) return;
+      firedTimeWarningsRef.current.add(key);
+      playAdminTimeWarningSound(stage);
+      setLiveAlert({
+        id: `time_${key}`,
+        kind: 'warning',
+        title,
+        detail,
+      });
+      if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+      alertTimerRef.current = setTimeout(() => setLiveAlert(null), 6500);
+    };
+
+    if (
+      activeSessionDuration >= 360 &&
+      remainingSec <= 300 &&
+      remainingSec > 60 &&
+      (prevRem === null || prevRem > 300)
+    ) {
+      triggerWarning(
+        '5m',
+        'PERINGATAN WAKTU · SISA 5 MENIT',
+        'Sisa waktu sesi tinggal 5 menit lagi.'
+      );
+    } else if (
+      activeSessionDuration >= 90 &&
+      remainingSec <= 60 &&
+      remainingSec > 30 &&
+      (prevRem === null || prevRem > 60)
+    ) {
+      triggerWarning(
+        '1m',
+        'WAKTU HAMPIR HABIS · SISA 1 MENIT',
+        'Sisa waktu sesi tinggal 1 menit lagi!'
+      );
+    } else if (
+      activeSessionDuration >= 45 &&
+      remainingSec <= 30 &&
+      remainingSec > 0 &&
+      (prevRem === null || prevRem > 30)
+    ) {
+      triggerWarning(
+        '30s',
+        'WAKTU HAMPIR HABIS · 30 DETIK TERAKHIR',
+        'Sisa waktu sesi tinggal 30 detik lagi!'
+      );
+    } else if (remainingSec === 0 && prevRem !== null && prevRem > 0) {
+      triggerWarning(
+        '0s',
+        'WAKTU SESI HABIS',
+        'Waktu hitung mundur telah mencapai 00:00.'
+      );
+    }
+  }, [
+    activeSessionId,
+    activeSessionStatus,
+    activeSessionStartedAt,
+    activeSessionDuration,
+    remainingSec,
+  ]);
+
   if (!creds) {
     return (
       <div className="min-h-screen flex flex-col">
-        <header className="border-b border-[#192A20] bg-[#060A08]">
-          <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-            <span className="font-mono text-sm font-bold tracking-wider text-[#22FF88]">
-              HACK THE SYSTEM · ADMIN
-            </span>
-            <div className="flex items-center gap-6 text-sm text-[#8AA899]">
-              <Link href="/" className="hover:text-[#22FF88]">
+        <header className="border-b border-[#1B2A21] bg-[#070A08]/92 backdrop-blur-md">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="font-mono text-sm font-bold tracking-wider text-[#22FF88] whitespace-nowrap shrink-0">
+                HACK THE SYSTEM
+              </span>
+              <span className="text-xs text-[#8AA396] whitespace-nowrap shrink-0">
+                Admin Kontrol
+              </span>
+            </div>
+            <div className="flex items-center gap-5 text-sm text-[#8AA396] shrink-0">
+              <Link href="/" className="hover:text-[#E8F3EC] transition-colors whitespace-nowrap shrink-0">
                 Halaman Kelompok
               </Link>
-              <Link href="/layar" className="hover:text-[#22FF88]">
+              <Link href="/layar" className="hover:text-[#E8F3EC] transition-colors whitespace-nowrap shrink-0">
                 Layar Proyektor
               </Link>
             </div>
@@ -534,21 +627,21 @@ export function AdminDashboard() {
         </header>
 
         <main className="flex-1 flex items-center justify-center px-4 py-12">
-          <div className="w-full max-w-md rounded-xl border border-[#1B2F23] bg-[#0B120E] p-6 sm:p-8 space-y-6">
-            <div className="space-y-1.5">
-              <div className="w-11 h-11 rounded-lg bg-[#102016] border border-[#22FF88]/30 flex items-center justify-center text-[#22FF88] mb-3">
+          <div className="w-full max-w-md rounded-2xl border border-[#1B2A21] bg-[#0B110D] p-6 sm:p-8 space-y-6">
+            <div className="space-y-2">
+              <div className="w-11 h-11 rounded-xl bg-[#0E1E15] border border-[#22FF88]/30 flex items-center justify-center text-[#22FF88] mb-3">
                 <Lock className="w-5 h-5" />
               </div>
-              <h1 className="text-2xl font-bold text-[#E6F4EC]">
+              <h1 className="text-2xl font-bold text-[#E8F3EC]">
                 Panel Kontrol Admin
               </h1>
-              <p className="text-sm text-[#8AA899]">
-                Masukkan Kode Sesi dan PIN Admin untuk mengelola permainan.
+              <p className="text-sm text-[#8AA396] leading-relaxed">
+                Masukkan Kode Sesi dan PIN Admin untuk mengelola jalannya permainan.
               </p>
             </div>
 
             {loginError && (
-              <div className="p-3 rounded-lg border border-[#FF3B5C]/50 bg-[#FF3B5C]/10 text-sm text-[#FF9BAE]">
+              <div className="p-3.5 rounded-xl border border-[#FF3B5C]/45 bg-[#FF3B5C]/10 text-sm text-[#FF9BAE]">
                 {loginError}
               </div>
             )}
@@ -557,9 +650,9 @@ export function AdminDashboard() {
               <div className="space-y-1.5">
                 <label
                   htmlFor="admin-session-code"
-                  className="block font-mono text-xs tracking-wider text-[#8AA899]"
+                  className="block text-xs font-medium text-[#8AA396]"
                 >
-                  KODE SESI (4 DIGIT)
+                  Kode Sesi (4 Digit)
                 </label>
                 <input
                   id="admin-session-code"
@@ -571,18 +664,18 @@ export function AdminDashboard() {
                     setLoginCode(e.target.value.replace(/\D/g, '').slice(0, 4))
                   }
                   placeholder="4821"
-                  className="w-full min-h-[48px] px-4 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-lg tracking-[0.2em] text-[#E6F4EC] focus:outline-none focus:border-[#22FF88]"
+                  className="w-full min-h-[48px] px-4 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-lg tracking-[0.2em] text-[#E8F3EC] focus:outline-none focus:border-[#22FF88]"
                   required
                 />
                 {sessionOptions.length > 0 && (
-                  <p className="text-xs text-[#8AA899]">
+                  <p className="text-xs text-[#8AA396]">
                     Sesi tersedia:{' '}
                     {sessionOptions.map((s) => (
                       <button
                         key={s.id}
                         type="button"
                         onClick={() => setLoginCode(s.sessionCode)}
-                        className="font-mono text-[#22FF88] underline mr-2 cursor-pointer"
+                        className="font-mono text-[#22FF88] underline underline-offset-2 mr-2.5 cursor-pointer"
                       >
                         {s.sessionCode}
                       </button>
@@ -594,9 +687,9 @@ export function AdminDashboard() {
               <div className="space-y-1.5">
                 <label
                   htmlFor="admin-pin"
-                  className="block font-mono text-xs tracking-wider text-[#8AA899]"
+                  className="block text-xs font-medium text-[#8AA396]"
                 >
-                  PIN ADMIN
+                  PIN Admin
                 </label>
                 <input
                   id="admin-pin"
@@ -604,7 +697,7 @@ export function AdminDashboard() {
                   value={loginPin}
                   onChange={(e) => setLoginPin(e.target.value)}
                   placeholder="Masukkan PIN admin"
-                  className="w-full min-h-[48px] px-4 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-lg text-[#E6F4EC] focus:outline-none focus:border-[#22FF88]"
+                  className="w-full min-h-[48px] px-4 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-lg text-[#E8F3EC] placeholder:text-sm placeholder:text-[#4C6557] focus:outline-none focus:border-[#22FF88]"
                   required
                 />
               </div>
@@ -612,7 +705,7 @@ export function AdminDashboard() {
               <button
                 type="submit"
                 disabled={loginLoading}
-                className="w-full min-h-[48px] rounded-lg bg-[#22FF88] text-[#041209] font-bold text-base hover:bg-[#3EFF99] disabled:opacity-50 cursor-pointer"
+                className="w-full min-h-[48px] rounded-xl bg-[#22FF88] text-[#041209] font-bold text-base hover:bg-[#3EFF99] disabled:opacity-50 cursor-pointer transition-colors"
               >
                 {loginLoading ? 'Memverifikasi...' : 'Buka Panel Admin'}
               </button>
@@ -626,27 +719,27 @@ export function AdminDashboard() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Admin Top Bar */}
-      <header className="sticky top-0 z-30 border-b border-[#192A20] bg-[#060A08]/95 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-[#1B2A21] bg-[#070A08]/92 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4 min-w-0">
-            <span className="font-mono text-sm font-bold tracking-wider text-[#22FF88] whitespace-nowrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="font-mono text-sm font-bold tracking-wider text-[#22FF88] whitespace-nowrap shrink-0">
               ADMIN KONTROL
             </span>
             {adminData && (
-              <span className="hidden sm:inline font-mono text-xs text-[#8AA899] truncate">
-                Sesi {adminData.session.sessionCode} · {adminData.session.title}
+              <span className="hidden sm:inline text-xs text-[#8AA396] truncate">
+                Sesi <strong className="font-mono text-[#E8F3EC]">{adminData.session.sessionCode}</strong> · {adminData.session.title}
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0">
             <button
               type="button"
               onClick={handleActivateAdminAudio}
-              className={`min-h-[38px] px-3 rounded-lg border font-mono text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              className={`min-h-[38px] px-3 rounded-lg border text-xs font-medium inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
                 audioReady
-                  ? 'border-[#22FF88]/40 bg-[#0D1A12] text-[#22FF88] hover:bg-[#13261B]'
-                  : 'border-[#FFB020]/60 bg-[#1F1708] text-[#FFD07A] hover:bg-[#2A1F0B]'
+                  ? 'border-[#22FF88]/40 bg-[#0D1E14] text-[#22FF88] hover:bg-[#12271B]'
+                  : 'border-[#FFB020]/55 bg-[#1B1408] text-[#FFD07A] hover:bg-[#241B0B]'
               }`}
             >
               <Volume2 className="w-3.5 h-3.5 shrink-0" />
@@ -656,9 +749,9 @@ export function AdminDashboard() {
               <Link
                 href={`/layar?kode=${adminData.session.sessionCode}`}
                 target="_blank"
-                className="min-h-[38px] px-3 rounded-lg border border-[#243B2E] text-xs font-semibold text-[#E6F4EC] hover:border-[#22FF88]/50 inline-flex items-center gap-1.5 whitespace-nowrap"
+                className="min-h-[38px] px-3 rounded-lg border border-[#1E3126] text-xs font-medium text-[#E8F3EC] hover:border-[#22FF88]/45 inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
               >
-                <ExternalLink className="w-3.5 h-3.5 text-[#22FF88]" />
+                <ExternalLink className="w-3.5 h-3.5 text-[#22FF88] shrink-0" />
                 <span>Buka Layar Proyektor</span>
               </Link>
             )}
@@ -669,7 +762,7 @@ export function AdminDashboard() {
                 setCreds(null);
                 setAdminData(null);
               }}
-              className="min-h-[38px] px-3 rounded-lg border border-[#243B2E] text-xs text-[#8AA899] hover:text-[#FF3B5C] whitespace-nowrap cursor-pointer"
+              className="min-h-[38px] px-3 rounded-lg border border-[#1E3126] text-xs font-medium text-[#8AA396] hover:text-[#FF3B5C] hover:border-[#FF3B5C]/40 whitespace-nowrap shrink-0 cursor-pointer transition-colors"
             >
               Keluar PIN
             </button>
@@ -677,34 +770,48 @@ export function AdminDashboard() {
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         {liveAlert && (
           <div
             role="status"
-            className={`rounded-xl border p-4 flex items-center justify-between gap-4 ${
+            className={`relative overflow-hidden rounded-2xl border p-4 flex items-center justify-between gap-4 ${
               liveAlert.kind === 'correct'
-                ? 'border-[#22FF88] bg-[#0B2214] text-[#22FF88]'
-                : 'border-[#FF3B5C] bg-[#240B10] text-[#FF9BAE]'
+                ? 'border-[#22FF88]/65 bg-[#0B1E13] text-[#22FF88]'
+                : liveAlert.kind === 'warning'
+                  ? 'border-[#FFB020]/65 bg-[#1B1408] text-[#FFD07A]'
+                  : 'border-[#FF3B5C]/65 bg-[#1B0B0F] text-[#FF9BAE]'
             }`}
           >
+            <div
+              aria-hidden="true"
+              className={`absolute inset-x-0 top-0 h-[2px] ${
+                liveAlert.kind === 'correct'
+                  ? 'bg-[#22FF88]'
+                  : liveAlert.kind === 'warning'
+                    ? 'bg-[#FFB020]'
+                    : 'bg-[#FF3B5C]'
+              }`}
+            />
             <div className="flex items-center gap-3 min-w-0">
               {liveAlert.kind === 'correct' ? (
                 <CheckCircle2 className="w-5 h-5 shrink-0 text-[#22FF88]" />
+              ) : liveAlert.kind === 'warning' ? (
+                <Clock className="w-5 h-5 shrink-0 text-[#FFB020]" />
               ) : (
                 <ShieldAlert className="w-5 h-5 shrink-0 text-[#FF3B5C]" />
               )}
               <div className="min-w-0">
-                <p className="font-mono text-sm font-extrabold tracking-wide truncate">
+                <p className="font-mono text-sm font-bold tracking-wide truncate">
                   {liveAlert.title}
                 </p>
-                <p className="text-xs text-[#E6F4EC] truncate">{liveAlert.detail}</p>
+                <p className="text-xs text-[#E8F3EC] truncate">{liveAlert.detail}</p>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setLiveAlert(null)}
               aria-label="Tutup notifikasi"
-              className="min-h-[36px] min-w-[36px] rounded-lg text-[#8AA899] hover:text-[#E6F4EC] flex items-center justify-center shrink-0 cursor-pointer"
+              className="min-h-[36px] min-w-[36px] rounded-lg text-[#8AA396] hover:text-[#E8F3EC] flex items-center justify-center shrink-0 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -714,10 +821,10 @@ export function AdminDashboard() {
         {statusNotice && (
           <div
             role="status"
-            className={`p-3.5 rounded-lg border text-sm font-medium ${
+            className={`p-3.5 rounded-xl border text-sm font-medium ${
               statusNotice.type === 'ok'
-                ? 'border-[#22FF88]/50 bg-[#22FF88]/10 text-[#22FF88]'
-                : 'border-[#FF3B5C]/50 bg-[#FF3B5C]/10 text-[#FF9BAE]'
+                ? 'border-[#22FF88]/45 bg-[#0B1E13] text-[#22FF88]'
+                : 'border-[#FF3B5C]/45 bg-[#1B0B0F] text-[#FF9BAE]'
             }`}
           >
             {statusNotice.text}
@@ -726,20 +833,20 @@ export function AdminDashboard() {
 
         {/* Session Lifecycle Control Bar */}
         {adminData && (
-          <section className="rounded-xl border border-[#1B2F23] bg-[#0B120E] p-5 space-y-5">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2.5 text-xs font-mono text-[#8AA899]">
+          <section className="rounded-2xl border border-[#1B2A21] bg-[#0B110D] p-5 sm:p-6 space-y-5">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+              <div className="space-y-1.5 min-w-0">
+                <div className="flex flex-wrap items-center gap-2.5 text-xs text-[#8AA396]">
                   <span>
-                    KODE SESI:{' '}
-                    <strong className="text-[#22FF88] text-sm">
+                    Kode Sesi{' '}
+                    <strong className="font-mono text-[#22FF88] text-sm tabular-nums">
                       {adminData.session.sessionCode}
                     </strong>
                   </span>
-                  <span aria-hidden="true">·</span>
+                  <span aria-hidden="true" className="text-[#2D4437]">·</span>
                   <span>
-                    STATUS:{' '}
-                    <strong className="text-[#E6F4EC] uppercase">
+                    Status:{' '}
+                    <strong className="text-[#E8F3EC]">
                       {adminData.session.status === 'waiting'
                         ? 'Menunggu'
                         : adminData.session.status === 'running'
@@ -749,20 +856,20 @@ export function AdminDashboard() {
                             : 'Selesai'}
                     </strong>
                   </span>
-                  <span aria-hidden="true">·</span>
-                  <span>
+                  <span aria-hidden="true" className="text-[#2D4437]">·</span>
+                  <span className="font-mono tabular-nums">
                     {adminData.groups.length} / {adminData.session.maxGroups ?? 20} Kelompok
                   </span>
                 </div>
-                <h1 className="text-xl sm:text-2xl font-bold text-[#E6F4EC]">
+                <h1 className="text-xl sm:text-2xl font-bold text-[#E8F3EC] truncate">
                   {adminData.session.title}
                 </h1>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="px-4 py-2 rounded-lg bg-[#050907] border border-[#243B2E] text-right">
-                  <p className="font-mono text-[10px] text-[#8AA899]">TIMER SESI</p>
-                  <p className="font-mono text-2xl font-bold text-[#22FF88] tabular-nums">
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                <div className="pr-4 mr-1 border-r border-[#17231C] text-left lg:text-right">
+                  <p className="text-[11px] text-[#8AA396]">Timer Sesi</p>
+                  <p className="font-mono text-2xl sm:text-3xl font-bold text-[#22FF88] tabular-nums leading-tight">
                     {formatClock(remainingSec)}
                   </p>
                 </div>
@@ -772,9 +879,9 @@ export function AdminDashboard() {
                     type="button"
                     disabled={actionBusy}
                     onClick={() => runSessionAction('start')}
-                    className="min-h-[44px] px-5 rounded-lg bg-[#22FF88] text-[#041209] font-bold text-sm inline-flex items-center gap-2 hover:bg-[#3EFF99] disabled:opacity-50 cursor-pointer"
+                    className="min-h-[44px] px-5 rounded-xl bg-[#22FF88] text-[#041209] font-bold text-sm inline-flex items-center gap-2 hover:bg-[#3EFF99] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
                   >
-                    <Play className="w-4 h-4" />
+                    <Play className="w-4 h-4 shrink-0" />
                     <span>MULAI</span>
                   </button>
                 )}
@@ -784,9 +891,9 @@ export function AdminDashboard() {
                     type="button"
                     disabled={actionBusy}
                     onClick={() => runSessionAction('pause')}
-                    className="min-h-[44px] px-5 rounded-lg bg-[#FFB020] text-[#1A1204] font-bold text-sm inline-flex items-center gap-2 hover:bg-[#FFC24E] disabled:opacity-50 cursor-pointer"
+                    className="min-h-[44px] px-5 rounded-xl bg-[#FFB020] text-[#1A1204] font-bold text-sm inline-flex items-center gap-2 hover:bg-[#FFC24E] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
                   >
-                    <Pause className="w-4 h-4" />
+                    <Pause className="w-4 h-4 shrink-0" />
                     <span>JEDA</span>
                   </button>
                 )}
@@ -796,9 +903,9 @@ export function AdminDashboard() {
                     type="button"
                     disabled={actionBusy}
                     onClick={() => runSessionAction('resume')}
-                    className="min-h-[44px] px-5 rounded-lg bg-[#22FF88] text-[#041209] font-bold text-sm inline-flex items-center gap-2 hover:bg-[#3EFF99] disabled:opacity-50 cursor-pointer"
+                    className="min-h-[44px] px-5 rounded-xl bg-[#22FF88] text-[#041209] font-bold text-sm inline-flex items-center gap-2 hover:bg-[#3EFF99] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
                   >
-                    <Play className="w-4 h-4" />
+                    <Play className="w-4 h-4 shrink-0" />
                     <span>LANJUT</span>
                   </button>
                 )}
@@ -809,9 +916,9 @@ export function AdminDashboard() {
                       type="button"
                       disabled={actionBusy}
                       onClick={() => setConfirmAction('end')}
-                      className="min-h-[44px] px-4 rounded-lg border border-[#FF3B5C]/60 bg-[#FF3B5C]/10 text-[#FF9BAE] font-semibold text-sm inline-flex items-center gap-2 hover:bg-[#FF3B5C]/20 cursor-pointer"
+                      className="min-h-[44px] px-4 rounded-xl border border-[#FF3B5C]/50 bg-[#1B0B0F] text-[#FF9BAE] font-semibold text-sm inline-flex items-center gap-2 hover:bg-[#271016] whitespace-nowrap shrink-0 cursor-pointer"
                     >
-                      <Square className="w-4 h-4" />
+                      <Square className="w-4 h-4 shrink-0" />
                       <span>AKHIRI</span>
                     </button>
                   )}
@@ -820,25 +927,25 @@ export function AdminDashboard() {
                   type="button"
                   disabled={actionBusy}
                   onClick={() => setConfirmAction('reset')}
-                  className="min-h-[44px] px-4 rounded-lg border border-[#243B2E] text-sm font-semibold text-[#E6F4EC] hover:border-[#FF3B5C]/50 inline-flex items-center gap-2 cursor-pointer"
+                  className="min-h-[44px] px-4 rounded-xl border border-[#1E3126] text-sm font-medium text-[#E8F3EC] hover:border-[#FF3B5C]/50 hover:text-[#FF9BAE] inline-flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer transition-colors"
                 >
-                  <RotateCcw className="w-4 h-4" />
+                  <RotateCcw className="w-4 h-4 shrink-0" />
                   <span>RESET</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(true)}
-                  className="min-h-[44px] px-4 rounded-lg border border-[#22FF88]/40 text-sm font-semibold text-[#22FF88] hover:bg-[#102016] inline-flex items-center gap-2 cursor-pointer"
+                  className="min-h-[44px] px-4 rounded-xl border border-[#22FF88]/40 text-sm font-medium text-[#22FF88] hover:bg-[#0E1E15] inline-flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer transition-colors"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4 shrink-0" />
                   <span>Buat Sesi Baru</span>
                 </button>
               </div>
             </div>
 
             {confirmAction && (
-              <div className="p-4 rounded-lg border border-[#FF3B5C]/60 bg-[#1B0B0F] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="p-4 rounded-xl border border-[#FF3B5C]/50 bg-[#1B0B0F] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <p className="text-sm text-[#FFCCD6]">
                   {confirmAction === 'end'
                     ? 'Yakin akhiri sesi sekarang? Proyektor akan menampilkan Podium 3 Besar dan kelompok tidak bisa mengirim kunci lagi.'
@@ -856,7 +963,7 @@ export function AdminDashboard() {
                   <button
                     type="button"
                     onClick={() => setConfirmAction(null)}
-                    className="min-h-[40px] px-4 rounded-lg border border-[#243B2E] text-sm text-[#E6F4EC] cursor-pointer"
+                    className="min-h-[40px] px-4 rounded-lg border border-[#1E3126] text-sm text-[#E8F3EC] cursor-pointer"
                   >
                     Batal
                   </button>
@@ -868,14 +975,14 @@ export function AdminDashboard() {
 
         {/* Pending Queue Alert */}
         {pendingRequests.length > 0 && activeTab !== 'requests' && (
-          <div className="rounded-xl border border-[#FFB020] bg-[#1F1708] p-4 flex items-center justify-between gap-4">
+          <div className="rounded-2xl border border-[#FFB020]/60 bg-[#1B1408] p-4 flex items-center justify-between gap-4">
             <p className="text-sm font-semibold text-[#FFD07A]">
               Ada {pendingRequests.length} permintaan petunjuk/kunci darurat menunggu persetujuan.
             </p>
             <button
               type="button"
               onClick={() => setActiveTab('requests')}
-              className="min-h-[40px] px-4 rounded-lg bg-[#FFB020] text-[#1A1204] font-bold text-xs whitespace-nowrap cursor-pointer"
+              className="min-h-[40px] px-4 rounded-lg bg-[#FFB020] text-[#1A1204] font-bold text-xs whitespace-nowrap shrink-0 cursor-pointer"
             >
               Lihat Antrean
             </button>
@@ -883,18 +990,18 @@ export function AdminDashboard() {
         )}
 
         {/* Navigation Tabs */}
-        <div className="flex flex-wrap gap-2 p-1.5 rounded-xl bg-[#0B120E] border border-[#1B2F23]">
+        <div className="flex flex-wrap gap-1.5 p-1.5 rounded-2xl bg-[#0B110D] border border-[#1B2A21]">
           <button
             type="button"
             onClick={() => setActiveTab('groups')}
-            className={`min-h-[44px] px-4 rounded-lg text-sm font-semibold inline-flex items-center gap-2 transition-colors whitespace-nowrap cursor-pointer ${
+            className={`min-h-[42px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === 'groups'
                 ? 'bg-[#22FF88] text-[#041209]'
-                : 'text-[#8AA899] hover:text-[#E6F4EC]'
+                : 'text-[#8AA396] hover:text-[#E8F3EC]'
             }`}
           >
-            <Users className="w-4 h-4" />
-            <span>
+            <Users className="w-4 h-4 shrink-0" />
+            <span className="tabular-nums">
               Kelompok ({adminData?.groups.length ?? 0}/{adminData?.session.maxGroups ?? 20})
             </span>
           </button>
@@ -902,14 +1009,14 @@ export function AdminDashboard() {
           <button
             type="button"
             onClick={() => setActiveTab('requests')}
-            className={`min-h-[44px] px-4 rounded-lg text-sm font-semibold inline-flex items-center gap-2 transition-colors whitespace-nowrap cursor-pointer ${
+            className={`min-h-[42px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === 'requests'
                 ? 'bg-[#22FF88] text-[#041209]'
-                : 'text-[#8AA899] hover:text-[#E6F4EC]'
+                : 'text-[#8AA396] hover:text-[#E8F3EC]'
             }`}
           >
-            <Bell className="w-4 h-4" />
-            <span>
+            <Bell className="w-4 h-4 shrink-0" />
+            <span className="tabular-nums">
               Antrean Permintaan
               {pendingRequests.length > 0 ? ` (${pendingRequests.length})` : ''}
             </span>
@@ -936,95 +1043,96 @@ export function AdminDashboard() {
                 setDraftSheets(adminData.sheets);
               }
             }}
-            className={`min-h-[44px] px-4 rounded-lg text-sm font-semibold inline-flex items-center gap-2 transition-colors whitespace-nowrap cursor-pointer ${
+            className={`min-h-[42px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === 'config'
                 ? 'bg-[#22FF88] text-[#041209]'
-                : 'text-[#8AA899] hover:text-[#E6F4EC]'
+                : 'text-[#8AA396] hover:text-[#E8F3EC]'
             }`}
           >
-            <Sliders className="w-4 h-4" />
+            <Sliders className="w-4 h-4 shrink-0" />
             <span>Konten Lembar & Poin</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('logs')}
-            className={`min-h-[44px] px-4 rounded-lg text-sm font-semibold inline-flex items-center gap-2 transition-colors whitespace-nowrap cursor-pointer ${
+            className={`min-h-[42px] px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === 'logs'
                 ? 'bg-[#22FF88] text-[#041209]'
-                : 'text-[#8AA899] hover:text-[#E6F4EC]'
+                : 'text-[#8AA396] hover:text-[#E8F3EC]'
             }`}
           >
-            <FileSpreadsheet className="w-4 h-4" />
+            <FileSpreadsheet className="w-4 h-4 shrink-0" />
             <span>Log & Ekspor CSV</span>
           </button>
         </div>
 
         {/* TAB 1: GROUPS */}
         {activeTab === 'groups' && adminData && (
-          <section className="rounded-xl border border-[#1B2F23] bg-[#0B120E] p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[#E6F4EC]">
+          <section className="rounded-2xl border border-[#1B2A21] bg-[#0B110D] overflow-hidden">
+            <div className="px-5 sm:px-6 py-4 border-b border-[#17231C] flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-bold text-[#E8F3EC]">
                 Daftar Kelompok & Penyesuaian Poin
               </h2>
-              <span className="font-mono text-xs text-[#8AA899]">
+              <span className="text-xs text-[#8AA396]">
                 Diurutkan berdasarkan peringkat
               </span>
             </div>
 
             {adminData.groups.length === 0 ? (
-              <p className="py-8 text-center text-sm text-[#8AA899]">
+              <p className="px-6 py-12 text-center text-sm text-[#8AA396]">
                 Belum ada kelompok terdaftar pada sesi ini. Bagikan Kode Sesi{' '}
-                <strong className="font-mono text-[#22FF88]">
+                <strong className="font-mono text-[#22FF88] tabular-nums">
                   {adminData.session.sessionCode}
                 </strong>{' '}
                 kepada peserta.
               </p>
             ) : (
-              <div className="space-y-3">
+              <div className="divide-y divide-[#17231C]">
                 {adminData.groups.map((g, idx) => (
                   <div
                     key={g.id}
-                    className="rounded-lg border border-[#192B20] bg-[#060B08] p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                    className="px-5 sm:px-6 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-[#0E1611] transition-colors"
                   >
                     <div className="space-y-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2.5">
-                        <span className="font-mono text-sm font-bold text-[#22FF88]">
+                        <span className="font-mono text-sm font-bold text-[#22FF88] tabular-nums">
                           #{idx + 1}
                         </span>
-                        <h3 className="text-base font-bold text-[#E6F4EC]">
+                        <h3 className="text-base font-bold text-[#E8F3EC]">
                           {g.teamName}
                         </h3>
-                        <span className="font-mono text-xs text-[#8AA899]">
-                          · Kode Masuk: <strong className="text-[#E6F4EC]">{g.groupCode}</strong>
+                        <span className="text-xs text-[#8AA396]">
+                          · Kode Masuk{' '}
+                          <strong className="font-mono text-[#E8F3EC]">{g.groupCode}</strong>
                         </span>
                       </div>
-                      <p className="text-xs text-[#8AA899]">
+                      <p className="text-xs text-[#8AA396]">
                         Anggota: {g.members.join(', ')}
                       </p>
-                      <p className="text-xs font-mono text-[#8AA899]">
+                      <p className="text-xs font-mono text-[#8AA396]">
                         Aktivitas terakhir: {g.lastActivityText} ({formatTimeWib(g.lastActivityAtMs)})
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-4 shrink-0">
-                      <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-5 shrink-0">
+                      <div className="space-y-1.5">
                         <ProgressDots
                           completed={g.completedSheets}
                           total={adminData.session.totalSheets}
                         />
-                        <p className="font-mono text-[11px] text-[#8AA899]">
+                        <p className="font-mono text-[11px] text-[#8AA396] tabular-nums">
                           {g.completedSheets >= adminData.session.totalSheets
-                            ? 'Selesai (5/5)'
+                            ? `Selesai (${adminData.session.totalSheets}/${adminData.session.totalSheets})`
                             : `Sedang di Lembar ${g.currentSheet}`}
                         </p>
                       </div>
 
-                      <div className="text-right min-w-[80px]">
-                        <p className="font-mono text-2xl font-extrabold text-[#22FF88] tabular-nums">
+                      <div className="text-right min-w-[76px]">
+                        <p className="font-mono text-2xl font-bold text-[#22FF88] tabular-nums leading-none">
                           {g.points}
                         </p>
-                        <p className="font-mono text-[10px] text-[#8AA899]">POIN</p>
+                        <p className="text-[11px] text-[#8AA396] mt-0.5">poin</p>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -1035,7 +1143,7 @@ export function AdminDashboard() {
                             setAdjustDelta('5');
                             setAdjustReason('');
                           }}
-                          className="min-h-[40px] px-3 rounded-lg border border-[#22FF88]/40 text-xs font-semibold text-[#22FF88] hover:bg-[#102016] cursor-pointer"
+                          className="min-h-[40px] px-3 rounded-lg border border-[#22FF88]/40 text-xs font-semibold text-[#22FF88] hover:bg-[#102016] whitespace-nowrap cursor-pointer transition-colors"
                         >
                           +/- Poin
                         </button>
@@ -1045,7 +1153,7 @@ export function AdminDashboard() {
                           onClick={() =>
                             setRenameTarget({ id: g.id, name: g.teamName })
                           }
-                          className="min-h-[40px] min-w-[40px] rounded-lg border border-[#243B2E] text-[#8AA899] hover:text-[#E6F4EC] flex items-center justify-center cursor-pointer"
+                          className="min-h-[40px] min-w-[40px] rounded-lg border border-[#1E3126] text-[#8AA396] hover:text-[#E8F3EC] flex items-center justify-center cursor-pointer transition-colors"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
@@ -1053,7 +1161,7 @@ export function AdminDashboard() {
                           type="button"
                           aria-label={`Hapus ${g.teamName}`}
                           onClick={() => setConfirmDeleteGroupId(g.id)}
-                          className="min-h-[40px] min-w-[40px] rounded-lg border border-[#243B2E] text-[#8AA899] hover:text-[#FF3B5C] flex items-center justify-center cursor-pointer"
+                          className="min-h-[40px] min-w-[40px] rounded-lg border border-[#1E3126] text-[#8AA396] hover:text-[#FF3B5C] flex items-center justify-center cursor-pointer transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -1064,10 +1172,10 @@ export function AdminDashboard() {
               </div>
             )}
 
-            {/* Inline Rename Modal */}
+            {/* Inline Rename Panel */}
             {renameTarget && (
-              <div className="p-4 rounded-lg border border-[#22FF88]/50 bg-[#0A1710] space-y-3">
-                <p className="text-sm font-bold text-[#E6F4EC]">
+              <div className="p-5 border-t border-[#22FF88]/40 bg-[#0A1710] space-y-3">
+                <p className="text-sm font-bold text-[#E8F3EC]">
                   Ganti Nama Kelompok
                 </p>
                 <div className="flex flex-col sm:flex-row gap-2">
@@ -1078,7 +1186,7 @@ export function AdminDashboard() {
                     onChange={(e) =>
                       setRenameTarget({ ...renameTarget, name: e.target.value })
                     }
-                    className="flex-1 min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] text-sm text-[#E6F4EC]"
+                    className="flex-1 min-h-[44px] px-3.5 rounded-xl bg-[#060907] border border-[#1E3126] text-sm text-[#E8F3EC] focus:outline-none focus:border-[#22FF88]"
                   />
                   <button
                     type="button"
@@ -1090,14 +1198,14 @@ export function AdminDashboard() {
                         teamName: renameTarget.name,
                       })
                     }
-                    className="min-h-[44px] px-4 rounded-lg bg-[#22FF88] text-[#041209] font-bold text-sm cursor-pointer"
+                    className="min-h-[44px] px-4 rounded-xl bg-[#22FF88] text-[#041209] font-bold text-sm cursor-pointer"
                   >
                     Simpan
                   </button>
                   <button
                     type="button"
                     onClick={() => setRenameTarget(null)}
-                    className="min-h-[44px] px-4 rounded-lg border border-[#243B2E] text-sm text-[#E6F4EC] cursor-pointer"
+                    className="min-h-[44px] px-4 rounded-xl border border-[#1E3126] text-sm text-[#E8F3EC] cursor-pointer"
                   >
                     Batal
                   </button>
@@ -1107,25 +1215,25 @@ export function AdminDashboard() {
 
             {/* Inline Manual Point Adjustment */}
             {pointAdjustTarget && (
-              <div className="p-4 rounded-lg border border-[#22FF88]/50 bg-[#0A1710] space-y-3">
-                <p className="text-sm font-bold text-[#E6F4EC]">
+              <div className="p-5 border-t border-[#22FF88]/40 bg-[#0A1710] space-y-3">
+                <p className="text-sm font-bold text-[#E8F3EC]">
                   Tambah / Kurangi Poin Manual — {pointAdjustTarget.teamName}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                   <div className="sm:col-span-3">
-                    <label className="block font-mono text-[11px] text-[#8AA899] mb-1">
-                      DELTA POIN (mis. 5 atau -2)
+                    <label className="block text-xs font-medium text-[#8AA396] mb-1">
+                      Delta Poin (mis. 5 atau -2)
                     </label>
                     <input
                       type="number"
                       value={adjustDelta}
                       onChange={(e) => setAdjustDelta(e.target.value)}
-                      className="w-full min-h-[44px] px-3 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-sm text-[#E6F4EC]"
+                      className="w-full min-h-[44px] px-3 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-sm text-[#E8F3EC] focus:outline-none focus:border-[#22FF88]"
                     />
                   </div>
                   <div className="sm:col-span-6">
-                    <label className="block font-mono text-[11px] text-[#8AA899] mb-1">
-                      ALASAN (wajib dicatat di log)
+                    <label className="block text-xs font-medium text-[#8AA396] mb-1">
+                      Alasan (wajib dicatat di log)
                     </label>
                     <input
                       type="text"
@@ -1133,7 +1241,7 @@ export function AdminDashboard() {
                       value={adjustReason}
                       onChange={(e) => setAdjustReason(e.target.value)}
                       placeholder="Misal: Ringkasan satu kalimat / Tebakan warm-up"
-                      className="w-full min-h-[44px] px-3 rounded-lg bg-[#050907] border border-[#243B2E] text-sm text-[#E6F4EC]"
+                      className="w-full min-h-[44px] px-3 rounded-xl bg-[#060907] border border-[#1E3126] text-sm text-[#E8F3EC] focus:outline-none focus:border-[#22FF88]"
                     />
                   </div>
                   <div className="sm:col-span-3 flex items-end gap-2">
@@ -1148,14 +1256,14 @@ export function AdminDashboard() {
                           reason: adjustReason,
                         })
                       }
-                      className="flex-1 min-h-[44px] px-4 rounded-lg bg-[#22FF88] text-[#041209] font-bold text-sm cursor-pointer"
+                      className="flex-1 min-h-[44px] px-4 rounded-xl bg-[#22FF88] text-[#041209] font-bold text-sm cursor-pointer"
                     >
                       Terapkan
                     </button>
                     <button
                       type="button"
                       onClick={() => setPointAdjustTarget(null)}
-                      className="min-h-[44px] px-3 rounded-lg border border-[#243B2E] text-sm text-[#E6F4EC] cursor-pointer"
+                      className="min-h-[44px] px-3 rounded-xl border border-[#1E3126] text-sm text-[#E8F3EC] cursor-pointer"
                     >
                       Batal
                     </button>
@@ -1166,11 +1274,11 @@ export function AdminDashboard() {
 
             {/* Inline Delete Confirmation */}
             {confirmDeleteGroupId && (
-              <div className="p-4 rounded-lg border border-[#FF3B5C]/60 bg-[#1B0B0F] flex items-center justify-between gap-4">
+              <div className="p-5 border-t border-[#FF3B5C]/45 bg-[#1B0B0F] flex items-center justify-between gap-4">
                 <p className="text-sm text-[#FFCCD6]">
                   Yakin hapus kelompok ini beserta seluruh log poinnya?
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
                     disabled={actionBusy}
@@ -1187,7 +1295,7 @@ export function AdminDashboard() {
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteGroupId(null)}
-                    className="min-h-[40px] px-4 rounded-lg border border-[#243B2E] text-sm text-[#E6F4EC] cursor-pointer"
+                    className="min-h-[40px] px-4 rounded-lg border border-[#1E3126] text-sm text-[#E8F3EC] cursor-pointer"
                   >
                     Batal
                   </button>
@@ -1199,24 +1307,24 @@ export function AdminDashboard() {
 
         {/* TAB 2: REQUESTS QUEUE */}
         {activeTab === 'requests' && adminData && (
-          <section className="rounded-xl border border-[#1B2F23] bg-[#0B120E] p-5 space-y-4">
-            <h2 className="text-lg font-bold text-[#E6F4EC]">
-              Antrean Permintaan Petunjuk & Kunci Darurat
-            </h2>
+          <section className="rounded-2xl border border-[#1B2A21] bg-[#0B110D] overflow-hidden">
+            <div className="px-5 sm:px-6 py-4 border-b border-[#17231C]">
+              <h2 className="text-lg font-bold text-[#E8F3EC]">
+                Antrean Permintaan Petunjuk & Kunci Darurat
+              </h2>
+            </div>
 
             {adminData.requests.length === 0 ? (
-              <p className="py-8 text-center text-sm text-[#8AA899]">
+              <p className="px-6 py-12 text-center text-sm text-[#8AA396]">
                 Belum ada permintaan bantuan dari kelompok.
               </p>
             ) : (
-              <div className="space-y-3">
+              <div className="divide-y divide-[#17231C]">
                 {adminData.requests.map((req) => (
                   <div
                     key={req.id}
-                    className={`rounded-lg border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                      req.status === 'pending'
-                        ? 'border-[#FFB020]/60 bg-[#171207]'
-                        : 'border-[#192B20] bg-[#060B08]'
+                    className={`px-5 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                      req.status === 'pending' ? 'bg-[#171207]' : ''
                     }`}
                   >
                     <div className="space-y-1">
@@ -1228,18 +1336,18 @@ export function AdminDashboard() {
                               : 'text-[#FFB020] font-bold'
                           }
                         >
-                          {req.type === 'emergency' ? 'KUNCI DARURAT' : 'PETUNJUK'}
+                          {req.type === 'emergency' ? 'Kunci Darurat' : 'Petunjuk'}
                         </span>
-                        <span aria-hidden="true">·</span>
-                        <span className="text-[#8AA899]">
+                        <span aria-hidden="true" className="text-[#2D4437]">·</span>
+                        <span className="text-[#8AA396]">
                           Lembar {req.sheetNumber}
                         </span>
-                        <span aria-hidden="true">·</span>
-                        <span className="text-[#8AA899]">
+                        <span aria-hidden="true" className="text-[#2D4437]">·</span>
+                        <span className="text-[#8AA396]">
                           {formatTimeWib(req.createdAtMs)}
                         </span>
                       </div>
-                      <p className="text-base font-bold text-[#E6F4EC]">
+                      <p className="text-base font-bold text-[#E8F3EC]">
                         {req.teamName}
                       </p>
                     </div>
@@ -1250,7 +1358,7 @@ export function AdminDashboard() {
                           type="button"
                           disabled={actionBusy}
                           onClick={() => handleRequestDecision(req.id, 'approve')}
-                          className="min-h-[42px] px-4 rounded-lg bg-[#22FF88] text-[#041209] font-bold text-sm inline-flex items-center gap-1.5 cursor-pointer"
+                          className="min-h-[42px] px-4 rounded-xl bg-[#22FF88] text-[#041209] font-bold text-sm inline-flex items-center gap-1.5 cursor-pointer"
                         >
                           <Check className="w-4 h-4" />
                           <span>Setujui</span>
@@ -1259,7 +1367,7 @@ export function AdminDashboard() {
                           type="button"
                           disabled={actionBusy}
                           onClick={() => handleRequestDecision(req.id, 'reject')}
-                          className="min-h-[42px] px-4 rounded-lg border border-[#FF3B5C]/50 text-[#FF9BAE] font-semibold text-sm inline-flex items-center gap-1.5 cursor-pointer"
+                          className="min-h-[42px] px-4 rounded-xl border border-[#FF3B5C]/45 text-[#FF9BAE] font-semibold text-sm inline-flex items-center gap-1.5 cursor-pointer"
                         >
                           <X className="w-4 h-4" />
                           <span>Tolak</span>
@@ -1273,7 +1381,7 @@ export function AdminDashboard() {
                             : 'text-[#FF3B5C]'
                         }`}
                       >
-                        {req.status === 'approved' ? 'DISETUJUI' : 'DITOLAK'}
+                        {req.status === 'approved' ? 'Disetujui' : 'Ditolak'}
                       </span>
                     )}
                   </div>
@@ -1285,32 +1393,32 @@ export function AdminDashboard() {
 
         {/* TAB 3: SHEETS & POINTS CONFIG */}
         {activeTab === 'config' && adminData && (
-          <section className="rounded-xl border border-[#1B2F23] bg-[#0B120E] p-5 space-y-6">
-            <div className="space-y-1">
-              <h2 className="text-lg font-bold text-[#E6F4EC]">
+          <section className="rounded-2xl border border-[#1B2A21] bg-[#0B110D] p-5 sm:p-6 space-y-7">
+            <div className="space-y-1 pb-4 border-b border-[#17231C]">
+              <h2 className="text-lg font-bold text-[#E8F3EC]">
                 Pengaturan Konten Lembar 1–5 & Aturan Poin
               </h2>
-              <p className="text-sm text-[#8AA899]">
+              <p className="text-sm text-[#8AA396]">
                 Kunci jawaban otomatis disimpan dalam format ternormalisasi (huruf besar, tanpa spasi dan tanda strip).
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-1.5">
-                <label className="block font-mono text-xs text-[#8AA899]">
-                  JUDUL SESI
+                <label className="block text-xs font-medium text-[#8AA396]">
+                  Judul Sesi
                 </label>
                 <input
                   type="text"
                   maxLength={100}
                   value={draftTitle}
                   onChange={(e) => setDraftTitle(e.target.value)}
-                  className="w-full min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] text-sm text-[#E6F4EC]"
+                  className="w-full min-h-[44px] px-3.5 rounded-xl bg-[#060907] border border-[#1E3126] text-sm text-[#E8F3EC] focus:outline-none focus:border-[#22FF88]"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="block font-mono text-xs text-[#8AA899]">
-                  DURASI TIMER (MENIT)
+                <label className="block text-xs font-medium text-[#8AA396]">
+                  Durasi Timer (Menit)
                 </label>
                 <input
                   type="number"
@@ -1318,12 +1426,12 @@ export function AdminDashboard() {
                   max={1440}
                   value={draftDurationMin}
                   onChange={(e) => setDraftDurationMin(Number(e.target.value))}
-                  className="w-full min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-sm text-[#E6F4EC]"
+                  className="w-full min-h-[44px] px-3.5 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-sm text-[#E8F3EC] focus:outline-none focus:border-[#22FF88]"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="block font-mono text-xs text-[#8AA899]">
-                  MAKSIMAL KELOMPOK (1–50)
+                <label className="block text-xs font-medium text-[#8AA396]">
+                  Maksimal Kelompok (1–50)
                 </label>
                 <input
                   type="number"
@@ -1335,27 +1443,27 @@ export function AdminDashboard() {
                       Math.min(50, Math.max(1, Number(e.target.value) || 1))
                     )
                   }
-                  className="w-full min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-sm text-[#E6F4EC]"
+                  className="w-full min-h-[44px] px-3.5 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-sm text-[#E8F3EC] focus:outline-none focus:border-[#22FF88]"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="block font-mono text-xs text-[#8AA899]">
-                  GANTI PIN ADMIN (OPSIONAL)
+                <label className="block text-xs font-medium text-[#8AA396]">
+                  Ganti PIN Admin (Opsional)
                 </label>
                 <input
                   type="password"
                   value={draftNewPin}
                   onChange={(e) => setDraftNewPin(e.target.value)}
                   placeholder="Kosongkan jika tetap"
-                  className="w-full min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-sm text-[#E6F4EC]"
+                  className="w-full min-h-[44px] px-3.5 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-sm text-[#E8F3EC] placeholder:text-[#4C6557] focus:outline-none focus:border-[#22FF88]"
                 />
               </div>
             </div>
 
             {/* Scoring Rules */}
-            <div className="space-y-3">
-              <h3 className="font-mono text-xs tracking-wider text-[#22FF88]">
-                ATURAN POIN
+            <div className="space-y-3 pt-2 border-t border-[#17231C]">
+              <h3 className="text-sm font-semibold text-[#22FF88]">
+                Aturan Poin
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
@@ -1367,7 +1475,7 @@ export function AdminDashboard() {
                   { key: 'pointsEmergency', label: 'Kunci Darurat' },
                 ].map((item) => (
                   <div key={item.key} className="space-y-1">
-                    <label className="block text-xs text-[#8AA899]">
+                    <label className="block text-xs text-[#8AA396]">
                       {item.label}
                     </label>
                     <input
@@ -1379,32 +1487,32 @@ export function AdminDashboard() {
                           [item.key]: Number(e.target.value),
                         }))
                       }
-                      className="w-full min-h-[42px] px-3 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-sm text-[#E6F4EC]"
+                      className="w-full min-h-[42px] px-3 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-sm text-[#E8F3EC] focus:outline-none focus:border-[#22FF88]"
                     />
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Sheets 1-5 */}
-            <div className="space-y-3">
-              <h3 className="font-mono text-xs tracking-wider text-[#22FF88]">
-                KONTEN LEMBAR 1–5
+            {/* Sheets 1-5 — Hairline-divided rows inside unified surface */}
+            <div className="space-y-3 pt-2 border-t border-[#17231C]">
+              <h3 className="text-sm font-semibold text-[#22FF88]">
+                Konten Lembar 1–5
               </h3>
-              <div className="space-y-3">
+              <div className="divide-y divide-[#17231C] border-y border-[#17231C]">
                 {draftSheets.map((sheet, idx) => (
                   <div
                     key={sheet.sheetNumber}
-                    className="rounded-lg border border-[#192B20] bg-[#060B08] p-4 grid grid-cols-1 lg:grid-cols-12 gap-3"
+                    className="py-4 grid grid-cols-1 lg:grid-cols-12 gap-3 items-end"
                   >
-                    <div className="lg:col-span-1 flex items-center">
-                      <span className="font-mono text-sm font-bold text-[#22FF88]">
+                    <div className="lg:col-span-1 flex items-center lg:pb-2.5">
+                      <span className="font-mono text-sm font-bold text-[#22FF88] tabular-nums">
                         L{sheet.sheetNumber}
                       </span>
                     </div>
                     <div className="lg:col-span-2 space-y-1">
-                      <label className="block font-mono text-[11px] text-[#8AA899]">
-                        KODE LEMBAR
+                      <label className="block text-xs text-[#8AA396]">
+                        Kode Lembar
                       </label>
                       <input
                         type="text"
@@ -1414,12 +1522,12 @@ export function AdminDashboard() {
                           next[idx] = { ...sheet, sheetCode: e.target.value.toUpperCase() };
                           setDraftSheets(next);
                         }}
-                        className="w-full min-h-[42px] px-3 rounded-lg bg-[#0B120E] border border-[#243B2E] font-mono text-sm text-[#E6F4EC]"
+                        className="w-full min-h-[42px] px-3 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-sm text-[#E8F3EC] focus:outline-none focus:border-[#22FF88]"
                       />
                     </div>
                     <div className="lg:col-span-3 space-y-1">
-                      <label className="block font-mono text-[11px] text-[#8AA899]">
-                        KUNCI ({normalizeAnswerKey(sheet.normalizedKey)})
+                      <label className="block text-xs text-[#8AA396]">
+                        Kunci ({normalizeAnswerKey(sheet.normalizedKey)})
                       </label>
                       <input
                         type="text"
@@ -1429,12 +1537,12 @@ export function AdminDashboard() {
                           next[idx] = { ...sheet, normalizedKey: e.target.value };
                           setDraftSheets(next);
                         }}
-                        className="w-full min-h-[42px] px-3 rounded-lg bg-[#0B120E] border border-[#243B2E] font-mono text-sm text-[#22FF88]"
+                        className="w-full min-h-[42px] px-3 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-sm text-[#22FF88] focus:outline-none focus:border-[#22FF88]"
                       />
                     </div>
                     <div className="lg:col-span-6 space-y-1">
-                      <label className="block font-mono text-[11px] text-[#8AA899]">
-                        TEKS PETUNJUK
+                      <label className="block text-xs text-[#8AA396]">
+                        Teks Petunjuk
                       </label>
                       <input
                         type="text"
@@ -1444,7 +1552,7 @@ export function AdminDashboard() {
                           next[idx] = { ...sheet, hintText: e.target.value };
                           setDraftSheets(next);
                         }}
-                        className="w-full min-h-[42px] px-3 rounded-lg bg-[#0B120E] border border-[#243B2E] text-sm text-[#E6F4EC]"
+                        className="w-full min-h-[42px] px-3 rounded-xl bg-[#060907] border border-[#1E3126] text-sm text-[#E8F3EC] focus:outline-none focus:border-[#22FF88]"
                       />
                     </div>
                   </div>
@@ -1466,7 +1574,7 @@ export function AdminDashboard() {
                     sheets: draftSheets,
                   })
                 }
-                className="min-h-[48px] px-6 rounded-lg bg-[#22FF88] text-[#041209] font-bold text-sm hover:bg-[#3EFF99] disabled:opacity-50 cursor-pointer"
+                className="min-h-[48px] px-6 rounded-xl bg-[#22FF88] text-[#041209] font-bold text-sm hover:bg-[#3EFF99] disabled:opacity-50 cursor-pointer transition-colors"
               >
                 Simpan Pengaturan Lembar & Poin
               </button>
@@ -1476,21 +1584,21 @@ export function AdminDashboard() {
 
         {/* TAB 4: LOGS & CSV EXPORT */}
         {activeTab === 'logs' && adminData && (
-          <section className="rounded-xl border border-[#1B2F23] bg-[#0B120E] p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <section className="rounded-2xl border border-[#1B2A21] bg-[#0B110D] overflow-hidden">
+            <div className="px-5 sm:px-6 py-4 border-b border-[#17231C] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-bold text-[#E6F4EC]">
+                <h2 className="text-lg font-bold text-[#E8F3EC]">
                   Log Aktivitas & Ekspor CSV
                 </h2>
-                <p className="text-xs text-[#8AA899]">
+                <p className="text-xs text-[#8AA396]">
                   Semua poin kelompok dihitung dari riwayat log ini.
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
                 <button
                   type="button"
                   onClick={() => handleExportCsv('results')}
-                  className="min-h-[42px] px-4 rounded-lg bg-[#22FF88] text-[#041209] font-bold text-xs inline-flex items-center gap-2 cursor-pointer"
+                  className="min-h-[40px] px-4 rounded-xl bg-[#22FF88] text-[#041209] font-bold text-xs inline-flex items-center gap-2 whitespace-nowrap cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   <span>Ekspor Hasil Akhir (CSV)</span>
@@ -1498,7 +1606,7 @@ export function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => handleExportCsv('logs')}
-                  className="min-h-[42px] px-4 rounded-lg border border-[#22FF88]/50 text-[#22FF88] font-bold text-xs inline-flex items-center gap-2 cursor-pointer"
+                  className="min-h-[40px] px-4 rounded-xl border border-[#22FF88]/45 text-[#22FF88] font-bold text-xs inline-flex items-center gap-2 whitespace-nowrap cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   <span>Ekspor Log Aktivitas (CSV)</span>
@@ -1507,47 +1615,47 @@ export function AdminDashboard() {
             </div>
 
             {adminData.logs.length === 0 ? (
-              <p className="py-8 text-center text-sm text-[#8AA899]">
+              <p className="px-6 py-12 text-center text-sm text-[#8AA396]">
                 Belum ada log aktivitas.
               </p>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto px-5 sm:px-6 py-2">
                 <table className="w-full text-left border-collapse text-sm">
                   <thead>
-                    <tr className="border-b border-[#1A2D22] font-mono text-xs text-[#8AA899]">
-                      <th className="py-2.5 pr-4">WAKTU</th>
-                      <th className="py-2.5 pr-4">KELOMPOK</th>
-                      <th className="py-2.5 pr-4">AKSI</th>
-                      <th className="py-2.5 pr-4">CATATAN</th>
-                      <th className="py-2.5 pr-4 text-right">DELTA</th>
-                      <th className="py-2.5 text-right">SALDO</th>
+                    <tr className="border-b border-[#17231C] text-xs font-medium text-[#8AA396]">
+                      <th className="py-3 pr-4">Waktu</th>
+                      <th className="py-3 pr-4">Kelompok</th>
+                      <th className="py-3 pr-4">Aksi</th>
+                      <th className="py-3 pr-4">Catatan</th>
+                      <th className="py-3 pr-4 text-right">Delta</th>
+                      <th className="py-3 text-right">Saldo</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#15241B]">
+                  <tbody className="divide-y divide-[#17231C]">
                     {adminData.logs.map((log) => (
-                      <tr key={log.id} className="hover:bg-[#101C15]">
-                        <td className="py-2.5 pr-4 font-mono text-xs text-[#8AA899] whitespace-nowrap">
+                      <tr key={log.id} className="hover:bg-[#0E1611] transition-colors">
+                        <td className="py-3 pr-4 font-mono text-xs text-[#8AA396] whitespace-nowrap tabular-nums">
                           {formatTimeWib(log.createdAtMs)}
                         </td>
-                        <td className="py-2.5 pr-4 font-semibold text-[#E6F4EC] whitespace-nowrap">
+                        <td className="py-3 pr-4 font-semibold text-[#E8F3EC] whitespace-nowrap">
                           {log.teamName}
                         </td>
-                        <td className="py-2.5 pr-4 text-[#E6F4EC]">{log.action}</td>
-                        <td className="py-2.5 pr-4 text-xs text-[#8AA899]">
+                        <td className="py-3 pr-4 text-[#E8F3EC]">{log.action}</td>
+                        <td className="py-3 pr-4 text-xs text-[#8AA396]">
                           {log.reason}
                         </td>
                         <td
-                          className={`py-2.5 pr-4 font-mono font-bold text-right tabular-nums ${
+                          className={`py-3 pr-4 font-mono font-bold text-right tabular-nums ${
                             log.delta > 0
                               ? 'text-[#22FF88]'
                               : log.delta < 0
                                 ? 'text-[#FF3B5C]'
-                                : 'text-[#8AA899]'
+                                : 'text-[#8AA396]'
                           }`}
                         >
                           {log.delta > 0 ? `+${log.delta}` : log.delta}
                         </td>
-                        <td className="py-2.5 font-mono text-right text-[#E6F4EC] tabular-nums">
+                        <td className="py-3 font-mono text-right text-[#E8F3EC] tabular-nums">
                           {log.balanceAfter}
                         </td>
                       </tr>
@@ -1562,16 +1670,16 @@ export function AdminDashboard() {
         {/* Create New Session Modal */}
         {showCreateModal && (
           <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="w-full max-w-md rounded-xl border border-[#22FF88]/50 bg-[#0B120E] p-6 space-y-4">
+            <div className="w-full max-w-md rounded-2xl border border-[#22FF88]/45 bg-[#0B110D] p-6 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-[#E6F4EC] inline-flex items-center gap-2">
+                <h2 className="text-lg font-bold text-[#E8F3EC] inline-flex items-center gap-2">
                   <KeyRound className="w-5 h-5 text-[#22FF88]" />
                   <span>Buat Sesi Baru</span>
                 </h2>
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="min-h-[36px] min-w-[36px] rounded-lg text-[#8AA899] hover:text-[#E6F4EC] flex items-center justify-center cursor-pointer"
+                  className="min-h-[36px] min-w-[36px] rounded-lg text-[#8AA396] hover:text-[#E8F3EC] flex items-center justify-center cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1579,8 +1687,8 @@ export function AdminDashboard() {
 
               <div className="space-y-3">
                 <div className="space-y-1">
-                  <label className="block font-mono text-xs text-[#8AA899]">
-                    KODE SESI BARU (4 DIGIT)
+                  <label className="block text-xs font-medium text-[#8AA396]">
+                    Kode Sesi Baru (4 Digit)
                   </label>
                   <input
                     type="text"
@@ -1591,37 +1699,37 @@ export function AdminDashboard() {
                       setNewCode(e.target.value.replace(/\D/g, '').slice(0, 4))
                     }
                     placeholder="Contoh: 7390"
-                    className="w-full min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-base text-[#E6F4EC]"
+                    className="w-full min-h-[44px] px-3.5 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-base text-[#E8F3EC] focus:outline-none focus:border-[#22FF88]"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block font-mono text-xs text-[#8AA899]">
-                    JUDUL SESI
+                  <label className="block text-xs font-medium text-[#8AA396]">
+                    Judul Sesi
                   </label>
                   <input
                     type="text"
                     maxLength={100}
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
-                    className="w-full min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] text-sm text-[#E6F4EC]"
+                    className="w-full min-h-[44px] px-3.5 rounded-xl bg-[#060907] border border-[#1E3126] text-sm text-[#E8F3EC] focus:outline-none focus:border-[#22FF88]"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="block font-mono text-xs text-[#8AA899]">
-                      PIN ADMIN
+                    <label className="block text-xs font-medium text-[#8AA396]">
+                      PIN Admin
                     </label>
                     <input
                       type="text"
                       value={newPinInput}
                       onChange={(e) => setNewPinInput(e.target.value)}
                       placeholder="Min. 4 karakter"
-                      className="w-full min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-sm text-[#E6F4EC]"
+                      className="w-full min-h-[44px] px-3.5 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-sm text-[#E8F3EC] focus:outline-none focus:border-[#22FF88]"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="block font-mono text-xs text-[#8AA899]">
-                      DURASI (MENIT)
+                    <label className="block text-xs font-medium text-[#8AA396]">
+                      Durasi (Menit)
                     </label>
                     <input
                       type="number"
@@ -1629,13 +1737,13 @@ export function AdminDashboard() {
                       max={1440}
                       value={newDurationMin}
                       onChange={(e) => setNewDurationMin(Number(e.target.value))}
-                      className="w-full min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-sm text-[#E6F4EC]"
+                      className="w-full min-h-[44px] px-3.5 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-sm text-[#E8F3EC] focus:outline-none focus:border-[#22FF88]"
                     />
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="block font-mono text-xs text-[#8AA899]">
-                    MAKSIMAL KELOMPOK (1–50)
+                  <label className="block text-xs font-medium text-[#8AA396]">
+                    Maksimal Kelompok (1–50)
                   </label>
                   <input
                     type="number"
@@ -1647,7 +1755,7 @@ export function AdminDashboard() {
                         Math.min(50, Math.max(1, Number(e.target.value) || 1))
                       )
                     }
-                    className="w-full min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-sm text-[#E6F4EC]"
+                    className="w-full min-h-[44px] px-3.5 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-sm text-[#E8F3EC] focus:outline-none focus:border-[#22FF88]"
                   />
                 </div>
               </div>
@@ -1656,7 +1764,7 @@ export function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="min-h-[44px] px-4 rounded-lg border border-[#243B2E] text-sm text-[#E6F4EC] cursor-pointer"
+                  className="min-h-[44px] px-4 rounded-xl border border-[#1E3126] text-sm text-[#E8F3EC] cursor-pointer"
                 >
                   Batal
                 </button>
@@ -1672,7 +1780,7 @@ export function AdminDashboard() {
                       maxGroups: newMaxGroups,
                     })
                   }
-                  className="min-h-[44px] px-5 rounded-lg bg-[#22FF88] text-[#041209] font-bold text-sm cursor-pointer"
+                  className="min-h-[44px] px-5 rounded-xl bg-[#22FF88] text-[#041209] font-bold text-sm cursor-pointer"
                 >
                   Buat Sesi
                 </button>

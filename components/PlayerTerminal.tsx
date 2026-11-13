@@ -653,26 +653,29 @@ export function PlayerTerminal() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Top Bar */}
-      <header className="sticky top-0 z-30 border-b border-[#192A20] bg-[#060A08]/95 backdrop-blur-md">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-30 border-b border-[#1B2A21] bg-[#070A08]/92 backdrop-blur-md">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <span className="font-mono text-sm sm:text-base font-bold tracking-wider text-[#22FF88] whitespace-nowrap shrink-0">
               HACK THE SYSTEM
             </span>
+            <span className="hidden md:inline text-xs text-[#8AA396] whitespace-nowrap">
+              Reading Escape Room
+            </span>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-4 shrink-0">
             {!savedAuth && (
-              <nav className="hidden sm:flex items-center gap-5 mr-2 text-sm text-[#8AA899]">
+              <nav className="hidden sm:flex items-center gap-5 text-sm text-[#8AA396]">
                 <Link
                   href="/layar"
-                  className="hover:text-[#22FF88] transition-colors whitespace-nowrap shrink-0"
+                  className="hover:text-[#E8F3EC] transition-colors whitespace-nowrap shrink-0"
                 >
                   Layar Proyektor
                 </Link>
                 <Link
                   href="/admin"
-                  className="hover:text-[#22FF88] transition-colors whitespace-nowrap shrink-0"
+                  className="hover:text-[#E8F3EC] transition-colors whitespace-nowrap shrink-0"
                 >
                   Panel Admin
                 </Link>
@@ -680,7 +683,7 @@ export function PlayerTerminal() {
             )}
 
             {audioReady ? (
-              <span className="min-h-[44px] px-3 inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-[#22FF88] whitespace-nowrap shrink-0">
+              <span className="min-h-[44px] px-2.5 inline-flex items-center gap-1.5 text-xs font-medium text-[#22FF88] whitespace-nowrap shrink-0">
                 <Volume2 className="w-4 h-4 shrink-0" />
                 <span>Mode Suara</span>
               </span>
@@ -688,7 +691,7 @@ export function PlayerTerminal() {
               <button
                 type="button"
                 onClick={handleActivateAudio}
-                className="min-h-[44px] px-3.5 rounded-lg border border-[#22FF88]/40 bg-[#0D1A12] text-[#22FF88] hover:bg-[#13261B] font-mono text-xs font-semibold inline-flex items-center gap-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                className="min-h-[40px] px-3.5 rounded-lg border border-[#22FF88]/45 bg-[#0C1911] text-[#22FF88] hover:bg-[#12261A] text-xs font-semibold inline-flex items-center gap-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <Volume2 className="w-4 h-4 shrink-0" />
                 <span>Aktifkan Suara</span>
@@ -699,78 +702,238 @@ export function PlayerTerminal() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-7 sm:py-10">
         {hydrating ? (
-          <div className="max-w-lg mx-auto p-6 rounded-xl border border-[#192A20] bg-[#0B120E] text-center font-mono text-sm text-[#8AA899]">
+          <div className="max-w-lg mx-auto py-16 text-center font-mono text-sm text-[#8AA396]">
             Memuat terminal...
           </div>
         ) : !savedAuth ? (
-          /* ENTRY / REGISTRATION VIEW */
-          <div className="max-w-xl mx-auto space-y-6">
-            <div className="space-y-2">
-              <p className="font-mono text-xs tracking-[0.2em] text-[#22FF88]">
-                READING ESCAPE ROOM · TERMINAL KELOMPOK
-              </p>
-              <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-[#E6F4EC] text-balance">
-                Masuk ke Sesi Misi Membaca
-              </h1>
-              <p className="text-sm sm:text-base text-[#8AA899]">
-                Satu HP per kelompok (dapat diisi 7 anggota atau lebih). Minta Kode Sesi 4 digit dari panitia atau admin.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-[#1B2F23] bg-[#0B120E] p-5 sm:p-6 space-y-5">
-              {/* Segmented Tabs */}
-              <div className="grid grid-cols-2 gap-1.5 p-1 rounded-lg bg-[#050907] border border-[#17281E]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEntryMode('register');
-                    setAuthError(null);
-                  }}
-                  className={`min-h-[44px] rounded-md text-sm font-semibold transition-colors whitespace-nowrap cursor-pointer ${
-                    entryMode === 'register'
-                      ? 'bg-[#22FF88] text-[#041209]'
-                      : 'text-[#8AA899] hover:text-[#E6F4EC]'
-                  }`}
-                >
-                  Daftar Kelompok
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEntryMode('rejoin');
-                    setAuthError(null);
-                  }}
-                  className={`min-h-[44px] rounded-md text-sm font-semibold transition-colors whitespace-nowrap cursor-pointer ${
-                    entryMode === 'rejoin'
-                      ? 'bg-[#22FF88] text-[#041209]'
-                      : 'text-[#8AA899] hover:text-[#E6F4EC]'
-                  }`}
-                >
-                  Masuk Kembali
-                </button>
+          /* ENTRY / REGISTRATION VIEW — ASYMMETRIC ARCHITECTURAL SPLIT */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+            {/* Left Editorial Mission Brief */}
+            <div className="lg:col-span-5 space-y-8 lg:pt-2">
+              <div className="space-y-3">
+                <p className="font-mono text-xs tracking-[0.18em] text-[#22FF88]">
+                  Terminal Kelompok
+                </p>
+                <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] leading-[1.08] font-bold tracking-tight text-[#E8F3EC] text-balance">
+                  Pecahkan Kode, Buka Brankas Bersama.
+                </h1>
+                <p className="text-sm sm:text-base leading-relaxed text-[#8AA396]">
+                  Satu perangkat per kelompok untuk lomba membaca bahasa Inggris. Cari lembar teks terlipat di ruangan, selesaikan soal di kertas, lalu masukkan kode kunci di sini.
+                </p>
               </div>
 
-              {authError && (
-                <div className="p-3.5 rounded-lg border border-[#FF3B5C]/50 bg-[#FF3B5C]/10 text-sm text-[#FF9BAE] flex items-start gap-2.5">
-                  <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-[#FF3B5C]" />
-                  <span>{authError}</span>
+              {/* Unboxed numbered steps with hairline dividers */}
+              <div className="border-t border-[#1B2A21] divide-y divide-[#17231C]">
+                <div className="py-4 flex items-start gap-4">
+                  <span className="font-mono text-xs font-bold text-[#22FF88] pt-0.5 tabular-nums">
+                    01
+                  </span>
+                  <div className="space-y-0.5">
+                    <h2 className="text-sm font-semibold text-[#E8F3EC]">
+                      Daftar dengan Kode Sesi
+                    </h2>
+                    <p className="text-xs leading-relaxed text-[#8AA396]">
+                      Masukkan Kode Sesi 4 digit dari panitia dan nama seluruh anggota (minimal 2, mendukung 7+ anggota).
+                    </p>
+                  </div>
                 </div>
-              )}
 
-              {entryMode === 'register' ? (
-                <form onSubmit={handleRegister} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="py-4 flex items-start gap-4">
+                  <span className="font-mono text-xs font-bold text-[#22FF88] pt-0.5 tabular-nums">
+                    02
+                  </span>
+                  <div className="space-y-0.5">
+                    <h2 className="text-sm font-semibold text-[#E8F3EC]">
+                      Ikuti Kode Lembar Terminal
+                    </h2>
+                    <p className="text-xs leading-relaxed text-[#8AA396]">
+                      Setiap kode kunci yang benar membuka kode lembar berikutnya dan menambah poin otomatis di papan skor.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="py-4 flex items-start gap-4">
+                  <span className="font-mono text-xs font-bold text-[#22FF88] pt-0.5 tabular-nums">
+                    03
+                  </span>
+                  <div className="space-y-0.5">
+                    <h2 className="text-sm font-semibold text-[#E8F3EC]">
+                      Simpan Kode Masuk Kembali
+                    </h2>
+                    <p className="text-xs leading-relaxed text-[#8AA396]">
+                      Setelah mendaftar, catat Kode Kelompok 4 karakter untuk memulihkan sesi jika browser HP tertutup.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="hidden lg:flex items-center gap-6 text-xs text-[#8AA396] pt-1">
+                <Link href="/layar" className="hover:text-[#22FF88] transition-colors whitespace-nowrap shrink-0">
+                  Buka Layar Proyektor
+                </Link>
+                <span aria-hidden="true" className="text-[#2D4437]">·</span>
+                <Link href="/admin" className="hover:text-[#22FF88] transition-colors whitespace-nowrap shrink-0">
+                  Masuk Panel Admin
+                </Link>
+              </div>
+            </div>
+
+            {/* Right Registration / Rejoin Surface */}
+            <div className="lg:col-span-7">
+              <div className="rounded-2xl border border-[#1B2A21] bg-[#0B110D] p-5 sm:p-7 space-y-6">
+                {/* Segmented Tabs */}
+                <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#060907] border border-[#17231C]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEntryMode('register');
+                      setAuthError(null);
+                    }}
+                    className={`min-h-[44px] rounded-lg text-sm font-semibold transition-colors whitespace-nowrap cursor-pointer ${
+                      entryMode === 'register'
+                        ? 'bg-[#22FF88] text-[#041209]'
+                        : 'text-[#8AA396] hover:text-[#E8F3EC]'
+                    }`}
+                  >
+                    Daftar Kelompok
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEntryMode('rejoin');
+                      setAuthError(null);
+                    }}
+                    className={`min-h-[44px] rounded-lg text-sm font-semibold transition-colors whitespace-nowrap cursor-pointer ${
+                      entryMode === 'rejoin'
+                        ? 'bg-[#22FF88] text-[#041209]'
+                        : 'text-[#8AA396] hover:text-[#E8F3EC]'
+                    }`}
+                  >
+                    Masuk Kembali
+                  </button>
+                </div>
+
+                {authError && (
+                  <div className="p-3.5 rounded-xl border border-[#FF3B5C]/45 bg-[#FF3B5C]/10 text-sm text-[#FF9BAE] flex items-start gap-2.5">
+                    <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-[#FF3B5C]" />
+                    <span>{authError}</span>
+                  </div>
+                )}
+
+                {entryMode === 'register' ? (
+                  <form onSubmit={handleRegister} className="space-y-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label
+                          htmlFor="reg-session-code"
+                          className="block text-xs font-medium text-[#8AA396]"
+                        >
+                          Kode Sesi (4 Digit)
+                        </label>
+                        <input
+                          id="reg-session-code"
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={4}
+                          value={sessionCodeInput}
+                          onChange={(e) =>
+                            setSessionCodeInput(e.target.value.replace(/\D/g, '').slice(0, 4))
+                          }
+                          placeholder="Contoh: 4821"
+                          className="w-full min-h-[48px] px-4 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-lg tracking-[0.2em] text-[#E8F3EC] placeholder:text-[#4C6557] placeholder:tracking-normal placeholder:text-sm focus:outline-none focus:border-[#22FF88]"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label
+                          htmlFor="reg-team-name"
+                          className="block text-xs font-medium text-[#8AA396]"
+                        >
+                          Nama Kelompok
+                        </label>
+                        <input
+                          id="reg-team-name"
+                          type="text"
+                          maxLength={50}
+                          value={teamNameInput}
+                          onChange={(e) => setTeamNameInput(e.target.value)}
+                          placeholder="Contoh: Alpha Readers"
+                          className="w-full min-h-[48px] px-4 rounded-xl bg-[#060907] border border-[#1E3126] text-base text-[#E8F3EC] placeholder:text-[#4C6557] focus:outline-none focus:border-[#22FF88]"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2.5 pt-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-[#8AA396]">
+                          Nama Anggota (Min. 2 · Mendukung 7+ Orang)
+                        </span>
+                        {membersInput.length < 20 && (
+                          <button
+                            type="button"
+                            onClick={handleAddMember}
+                            className="min-h-[36px] px-3 rounded-lg border border-[#1E3126] text-xs font-semibold text-[#22FF88] hover:bg-[#101D15] inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Tambah Anggota</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {membersInput.map((member, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              maxLength={40}
+                              value={member}
+                              onChange={(e) => {
+                                const next = [...membersInput];
+                                next[idx] = e.target.value;
+                                setMembersInput(next);
+                              }}
+                              placeholder={`Anggota ${idx + 1}${idx >= 2 ? ' (opsional)' : ''}`}
+                              className="flex-1 min-w-0 min-h-[44px] px-3.5 rounded-xl bg-[#060907] border border-[#1E3126] text-sm text-[#E8F3EC] placeholder:text-[#4C6557] focus:outline-none focus:border-[#22FF88]"
+                              required={idx < 2}
+                            />
+                            {membersInput.length > 2 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMember(idx)}
+                                aria-label={`Hapus anggota ${idx + 1}`}
+                                className="min-h-[44px] min-w-[44px] rounded-xl border border-[#1E3126] text-[#8AA396] hover:text-[#FF3B5C] hover:border-[#FF3B5C]/40 flex items-center justify-center shrink-0 cursor-pointer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={authLoading}
+                      className="w-full min-h-[52px] px-6 py-3 rounded-xl bg-[#22FF88] text-[#041209] font-bold text-base hover:bg-[#3EFF99] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
+                    >
+                      {authLoading ? 'Mendaftarkan Kelompok...' : 'Daftar & Masuk Ruang Tunggu'}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleRejoin} className="space-y-4">
                     <div className="space-y-1.5">
                       <label
-                        htmlFor="reg-session-code"
-                        className="block text-xs font-mono tracking-wider text-[#8AA899]"
+                        htmlFor="rejoin-session-code"
+                        className="block text-xs font-medium text-[#8AA396]"
                       >
-                        KODE SESI (4 DIGIT)
+                        Kode Sesi (4 Digit)
                       </label>
                       <input
-                        id="reg-session-code"
+                        id="rejoin-session-code"
                         type="text"
                         inputMode="numeric"
                         maxLength={4}
@@ -779,175 +942,76 @@ export function PlayerTerminal() {
                           setSessionCodeInput(e.target.value.replace(/\D/g, '').slice(0, 4))
                         }
                         placeholder="Contoh: 4821"
-                        className="w-full min-h-[48px] px-4 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-lg tracking-[0.2em] text-[#E6F4EC] placeholder:text-[#496354] placeholder:tracking-normal placeholder:text-sm focus:outline-none focus:border-[#22FF88]"
+                        className="w-full min-h-[48px] px-4 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-lg tracking-[0.2em] text-[#E8F3EC] placeholder:text-[#4C6557] placeholder:tracking-normal placeholder:text-sm focus:outline-none focus:border-[#22FF88]"
                         required
                       />
                     </div>
 
                     <div className="space-y-1.5">
                       <label
-                        htmlFor="reg-team-name"
-                        className="block text-xs font-mono tracking-wider text-[#8AA899]"
+                        htmlFor="rejoin-group-code"
+                        className="block text-xs font-medium text-[#8AA396]"
                       >
-                        NAMA KELOMPOK
+                        Kode Kelompok (4 Karakter)
                       </label>
                       <input
-                        id="reg-team-name"
+                        id="rejoin-group-code"
                         type="text"
-                        maxLength={50}
-                        value={teamNameInput}
-                        onChange={(e) => setTeamNameInput(e.target.value)}
-                        placeholder="Contoh: Alpha Readers"
-                        className="w-full min-h-[48px] px-4 rounded-lg bg-[#050907] border border-[#243B2E] text-base text-[#E6F4EC] placeholder:text-[#496354] focus:outline-none focus:border-[#22FF88]"
+                        maxLength={4}
+                        value={groupCodeInput}
+                        onChange={(e) =>
+                          setGroupCodeInput(
+                            e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4)
+                          )
+                        }
+                        placeholder="Contoh: K7M2"
+                        className="w-full min-h-[48px] px-4 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-lg tracking-[0.25em] text-[#22FF88] placeholder:text-[#4C6557] placeholder:tracking-normal placeholder:text-sm focus:outline-none focus:border-[#22FF88]"
                         required
                       />
                     </div>
-                  </div>
 
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-mono tracking-wider text-[#8AA899]">
-                        NAMA ANGGOTA (MIN. 2 · BISA 7+ ORANG)
-                      </span>
-                      {membersInput.length < 20 && (
-                        <button
-                          type="button"
-                          onClick={handleAddMember}
-                          className="min-h-[36px] px-2.5 rounded-md border border-[#243B2E] text-xs font-semibold text-[#22FF88] hover:bg-[#13261B] inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Tambah Anggota</span>
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {membersInput.map((member, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            maxLength={40}
-                            value={member}
-                            onChange={(e) => {
-                              const next = [...membersInput];
-                              next[idx] = e.target.value;
-                              setMembersInput(next);
-                            }}
-                            placeholder={`Anggota ${idx + 1}${idx >= 2 ? ' (opsional)' : ''}`}
-                            className="flex-1 min-w-0 min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] text-sm text-[#E6F4EC] placeholder:text-[#496354] focus:outline-none focus:border-[#22FF88]"
-                            required={idx < 2}
-                          />
-                          {membersInput.length > 2 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveMember(idx)}
-                              aria-label={`Hapus anggota ${idx + 1}`}
-                              className="min-h-[44px] min-w-[44px] rounded-lg border border-[#243B2E] text-[#8AA899] hover:text-[#FF3B5C] hover:border-[#FF3B5C]/40 flex items-center justify-center shrink-0 cursor-pointer"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={authLoading}
-                    className="w-full min-h-[52px] px-6 py-3 rounded-lg bg-[#22FF88] text-[#041209] font-bold text-base hover:bg-[#3EFF99] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
-                  >
-                    {authLoading ? 'Mendaftarkan Kelompok...' : 'Daftar & Masuk Ruang Tunggu'}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleRejoin} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label
-                      htmlFor="rejoin-session-code"
-                      className="block text-xs font-mono tracking-wider text-[#8AA899]"
+                    <button
+                      type="submit"
+                      disabled={authLoading}
+                      className="w-full min-h-[52px] px-6 py-3 rounded-xl bg-[#22FF88] text-[#041209] font-bold text-base hover:bg-[#3EFF99] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
                     >
-                      KODE SESI (4 DIGIT)
-                    </label>
-                    <input
-                      id="rejoin-session-code"
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={4}
-                      value={sessionCodeInput}
-                      onChange={(e) =>
-                        setSessionCodeInput(e.target.value.replace(/\D/g, '').slice(0, 4))
-                      }
-                      placeholder="Contoh: 4821"
-                      className="w-full min-h-[48px] px-4 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-lg tracking-[0.2em] text-[#E6F4EC] placeholder:text-[#496354] placeholder:tracking-normal placeholder:text-sm focus:outline-none focus:border-[#22FF88]"
-                      required
-                    />
-                  </div>
+                      {authLoading ? 'Memulihkan Sesi...' : 'Masuk Kembali ke Kelompok'}
+                    </button>
+                  </form>
+                )}
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label
-                      htmlFor="rejoin-group-code"
-                      className="block text-xs font-mono tracking-wider text-[#8AA899]"
-                    >
-                      KODE KELOMPOK (4 KARAKTER)
-                    </label>
-                    <input
-                      id="rejoin-group-code"
-                      type="text"
-                      maxLength={4}
-                      value={groupCodeInput}
-                      onChange={(e) =>
-                        setGroupCodeInput(
-                          e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4)
-                        )
-                      }
-                      placeholder="Contoh: K7M2"
-                      className="w-full min-h-[48px] px-4 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-lg tracking-[0.25em] text-[#22FF88] placeholder:text-[#496354] placeholder:tracking-normal placeholder:text-sm focus:outline-none focus:border-[#22FF88]"
-                      required
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={authLoading}
-                    className="w-full min-h-[52px] px-6 py-3 rounded-lg bg-[#22FF88] text-[#041209] font-bold text-base hover:bg-[#3EFF99] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
-                  >
-                    {authLoading ? 'Memulihkan Sesi...' : 'Masuk Kembali ke Kelompok'}
-                  </button>
-                </form>
-              )}
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-[#8AA899] pt-2">
-              <Link href="/layar" className="hover:text-[#22FF88] transition-colors">
-                Buka Layar Proyektor
-              </Link>
-              <span aria-hidden="true">·</span>
-              <Link href="/admin" className="hover:text-[#22FF88] transition-colors">
-                Masuk Panel Admin
-              </Link>
+              <div className="flex lg:hidden flex-wrap items-center justify-center gap-6 text-sm text-[#8AA396] pt-5">
+                <Link href="/layar" className="hover:text-[#22FF88] transition-colors">
+                  Buka Layar Proyektor
+                </Link>
+                <span aria-hidden="true" className="text-[#2D4437]">·</span>
+                <Link href="/admin" className="hover:text-[#22FF88] transition-colors">
+                  Masuk Panel Admin
+                </Link>
+              </div>
             </div>
           </div>
         ) : (
           /* LOGGED-IN GROUP GAMEPLAY */
-          <div className={`space-y-5 ${shakeTrigger ? 'animate-terminal-shake' : ''}`}>
+          <div className={`space-y-6 max-w-5xl mx-auto ${shakeTrigger ? 'animate-terminal-shake' : ''}`}>
             {/* One-time Group Code Modal after registration */}
             {showCodeModal && (
-              <div className="rounded-xl border border-[#22FF88]/60 bg-[#0B1810] p-5 sm:p-6 space-y-4">
+              <div className="rounded-2xl border border-[#22FF88]/50 bg-[#0B1710] p-5 sm:p-6 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <p className="font-mono text-xs tracking-wider text-[#22FF88]">
-                      PENDAFTARAN BERHASIL · SIMPAN KODE INI
+                      Pendaftaran Berhasil · Simpan Kode Ini
                     </p>
-                    <h2 className="text-lg font-bold text-[#E6F4EC]">
-                      Kode Kelompok Anda:
+                    <h2 className="text-lg font-bold text-[#E8F3EC]">
+                      Kode Kelompok Anda
                     </h2>
-                    <p className="text-sm text-[#8AA899]">
+                    <p className="text-sm text-[#8AA396]">
                       Catat kode ini untuk masuk kembali jika browser HP tertutup atau refresh.
                     </p>
                   </div>
-                  <div className="px-5 py-3 rounded-lg bg-[#040806] border border-[#22FF88]/50 text-center shrink-0">
-                    <span className="font-mono text-3xl font-bold tracking-[0.25em] text-[#22FF88]">
+                  <div className="px-5 py-3 rounded-xl bg-[#050806] border border-[#22FF88]/45 text-center shrink-0">
+                    <span className="font-mono text-3xl font-bold tracking-[0.25em] text-[#22FF88] tabular-nums">
                       {savedAuth.groupCode}
                     </span>
                   </div>
@@ -955,7 +1019,7 @@ export function PlayerTerminal() {
                 <button
                   type="button"
                   onClick={() => setShowCodeModal(false)}
-                  className="min-h-[44px] px-5 py-2 rounded-lg bg-[#22FF88] text-[#041209] font-semibold text-sm hover:bg-[#3EFF99] cursor-pointer"
+                  className="min-h-[44px] px-5 py-2 rounded-xl bg-[#22FF88] text-[#041209] font-semibold text-sm hover:bg-[#3EFF99] cursor-pointer"
                 >
                   Saya Sudah Catat
                 </button>
@@ -967,51 +1031,55 @@ export function PlayerTerminal() {
               <button
                 type="button"
                 onClick={handleActivateAudio}
-                className="w-full min-h-[60px] px-6 py-4 rounded-xl bg-[#22FF88] text-[#041209] font-bold text-base sm:text-lg flex items-center justify-center gap-3 shadow-[0_0_24px_rgba(34,255,136,0.28)] hover:bg-[#3EFF99] active:scale-[0.99] transition-all cursor-pointer"
+                className="w-full min-h-[60px] px-6 py-4 rounded-2xl bg-[#22FF88] text-[#041209] font-bold text-base sm:text-lg flex items-center justify-center gap-3 hover:bg-[#3EFF99] active:scale-[0.99] transition-all cursor-pointer"
               >
                 <Volume2 className="w-6 h-6 shrink-0" />
                 <span>AKTIFKAN SUARA (TEKAN SEKALI)</span>
               </button>
             )}
 
-            {/* Top HUD Summary */}
-            <section className="rounded-xl border border-[#1B2F23] bg-[#0B120E] p-4 sm:p-5">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Top HUD Summary — Single elevation with hairline dividers */}
+            <section className="rounded-2xl border border-[#1B2A21] bg-[#0B110D] p-5 sm:p-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
                 <div className="space-y-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-[#8AA899]">
-                    <span>Sesi {savedAuth.sessionCode}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>Kode Kelompok: {savedAuth.groupCode}</span>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-[#8AA396]">
+                    <span>
+                      Sesi <strong className="font-mono text-[#E8F3EC] tabular-nums">{savedAuth.sessionCode}</strong>
+                    </span>
+                    <span aria-hidden="true" className="text-[#2D4437]">·</span>
+                    <span>
+                      Kode Masuk <strong className="font-mono text-[#E8F3EC]">{savedAuth.groupCode}</strong>
+                    </span>
                     {audioReady && (
                       <>
-                        <span aria-hidden="true">·</span>
-                        <span className="text-[#22FF88]">Audio Aktif</span>
+                        <span aria-hidden="true" className="text-[#2D4437]">·</span>
+                        <span className="text-[#22FF88] font-medium">Mode Suara Aktif</span>
                       </>
                     )}
                   </div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-[#E6F4EC] truncate">
+                  <h1 className="text-xl sm:text-2xl font-bold text-[#E8F3EC] truncate">
                     {currentGroup?.teamName || privateState?.teamName || 'Memuat...'}
                   </h1>
-                  <p className="text-xs sm:text-sm text-[#8AA899] truncate">
-                    {(currentGroup?.members || privateState?.members || []).join(', ')}
+                  <p className="text-xs sm:text-sm text-[#8AA396] truncate">
+                    {(currentGroup?.members || privateState?.members || []).join(' · ')}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 sm:gap-5 pt-2 md:pt-0 border-t md:border-t-0 border-[#18291F]">
-                  <div>
-                    <p className="font-mono text-[11px] text-[#8AA899]">SISA WAKTU</p>
+                <div className="grid grid-cols-3 divide-x divide-[#17231C] pt-3 md:pt-0 border-t md:border-t-0 border-[#17231C] shrink-0">
+                  <div className="pr-4 sm:pr-6">
+                    <p className="text-xs text-[#8AA396]">Sisa Waktu</p>
                     <p className={`font-mono text-2xl sm:text-3xl font-bold tabular-nums ${timerColor}`}>
                       {sessionDoc ? formatClock(remainingSec) : '--:--'}
                     </p>
                   </div>
-                  <div>
-                    <p className="font-mono text-[11px] text-[#8AA899]">POIN</p>
-                    <p className="font-mono text-2xl sm:text-3xl font-bold text-[#E6F4EC]">
+                  <div className="px-4 sm:px-6">
+                    <p className="text-xs text-[#8AA396]">Poin</p>
+                    <p className="font-mono text-2xl sm:text-3xl font-bold text-[#E8F3EC] tabular-nums">
                       <AnimatedNumber value={displayPoints} />
                     </p>
                   </div>
-                  <div>
-                    <p className="font-mono text-[11px] text-[#8AA899]">KEMAJUAN</p>
+                  <div className="pl-4 sm:pl-6">
+                    <p className="text-xs text-[#8AA396]">Kemajuan</p>
                     <div className="pt-2">
                       <ProgressDots completed={completedSheets} total={totalSheets} />
                     </div>
@@ -1024,16 +1092,22 @@ export function PlayerTerminal() {
             {feedbackBanner && (
               <div
                 role="status"
-                className={`rounded-xl border p-5 text-center space-y-1.5 ${
+                className={`relative overflow-hidden rounded-2xl border p-5 text-center space-y-1.5 ${
                   feedbackBanner.type === 'denied'
-                    ? 'border-[#FF3B5C] bg-[#FF3B5C]/15 text-[#FF9BAE]'
-                    : 'border-[#22FF88] bg-[#22FF88]/15 text-[#22FF88]'
+                    ? 'border-[#FF3B5C]/70 bg-[#1B0B0F] text-[#FF9BAE]'
+                    : 'border-[#22FF88]/70 bg-[#0B1D13] text-[#22FF88]'
                 }`}
               >
-                <p className="font-mono text-2xl sm:text-3xl font-extrabold tracking-widest">
+                <div
+                  aria-hidden="true"
+                  className={`absolute inset-x-0 top-0 h-[2px] ${
+                    feedbackBanner.type === 'denied' ? 'bg-[#FF3B5C]' : 'bg-[#22FF88]'
+                  }`}
+                />
+                <p className="font-mono text-2xl sm:text-3xl font-bold tracking-widest">
                   {feedbackBanner.title}
                 </p>
-                <p className="text-sm sm:text-base font-medium text-[#E6F4EC]">
+                <p className="text-sm sm:text-base font-medium text-[#E8F3EC]">
                   {feedbackBanner.detail}
                 </p>
               </div>
@@ -1041,15 +1115,15 @@ export function PlayerTerminal() {
 
             {/* Main Game Area based on Session Status & Completion */}
             {sessionDoc?.status === 'waiting' ? (
-              <section className="rounded-xl border border-[#1B2F23] bg-[#0B120E] p-6 sm:p-10 text-center space-y-5">
-                <div className="w-12 h-12 rounded-full bg-[#112218] border border-[#22FF88]/30 flex items-center justify-center mx-auto text-[#22FF88]">
+              <section className="rounded-2xl border border-[#1B2A21] bg-[#0B110D] p-7 sm:p-12 text-center space-y-5">
+                <div className="w-12 h-12 rounded-xl bg-[#0E1E15] border border-[#22FF88]/30 flex items-center justify-center mx-auto text-[#22FF88]">
                   <Clock className="w-6 h-6" />
                 </div>
                 <div className="space-y-2 max-w-md mx-auto">
-                  <h2 className="text-xl sm:text-2xl font-bold text-[#E6F4EC]">
+                  <h2 className="text-xl sm:text-2xl font-bold text-[#E8F3EC]">
                     Ruang Tunggu Kelompok
                   </h2>
-                  <p className="text-sm sm:text-base text-[#8AA899]">
+                  <p className="text-sm sm:text-base leading-relaxed text-[#8AA396]">
                     Menunggu admin menekan tombol MULAI. Pastikan suara sudah diaktifkan di HP agar efek bunyi kemenangan dan peringatan terdengar jelas.
                   </p>
                 </div>
@@ -1057,7 +1131,7 @@ export function PlayerTerminal() {
                   <button
                     type="button"
                     onClick={handleActivateAudio}
-                    className="min-h-[44px] px-4 py-2 rounded-lg border border-[#243B2E] text-sm text-[#22FF88] hover:bg-[#13261B] inline-flex items-center gap-2 cursor-pointer"
+                    className="min-h-[44px] px-4 py-2 rounded-xl border border-[#1E3126] text-sm font-medium text-[#22FF88] hover:bg-[#101D15] inline-flex items-center gap-2 cursor-pointer"
                   >
                     <Volume2 className="w-4 h-4" />
                     <span>Tes Suara</span>
@@ -1067,37 +1141,40 @@ export function PlayerTerminal() {
             ) : isFinished ? (
               /* VAULT OPENED & LEADERBOARD */
               <div className="space-y-6">
-                <section className="rounded-xl border border-[#22FF88]/60 bg-[#0A1810] p-6 sm:p-8 text-center space-y-4 shadow-[0_0_40px_rgba(34,255,136,0.12)]">
-                  <div className="w-14 h-14 rounded-full bg-[#22FF88]/15 border border-[#22FF88]/50 flex items-center justify-center mx-auto text-[#22FF88]">
+                <section className="relative overflow-hidden rounded-2xl border border-[#22FF88]/50 bg-[#0B1911] p-7 sm:p-10 text-center space-y-4">
+                  <div aria-hidden="true" className="absolute inset-x-0 top-0 h-[2px] bg-[#22FF88]" />
+                  <div className="w-14 h-14 rounded-xl bg-[#22FF88]/15 border border-[#22FF88]/45 flex items-center justify-center mx-auto text-[#22FF88]">
                     <Trophy className="w-7 h-7" />
                   </div>
                   <div className="space-y-1.5">
-                    <p className="font-mono text-xs tracking-[0.22em] text-[#22FF88]">
-                      SEMUA LEMBAR TERPECAHKAN
+                    <p className="font-mono text-xs tracking-[0.2em] text-[#22FF88]">
+                      Semua Lembar Terpecahkan
                     </p>
-                    <h2 className="font-mono text-3xl sm:text-5xl font-extrabold tracking-wider text-[#22FF88]">
+                    <h2 className="font-mono text-3xl sm:text-5xl font-bold tracking-wider text-[#22FF88]">
                       VAULT OPENED
                     </h2>
-                    <p className="text-sm sm:text-base text-[#E6F4EC]">
+                    <p className="text-sm sm:text-base text-[#E8F3EC]">
                       Selamat! Poin akhir kelompok Anda:{' '}
-                      <strong className="font-mono text-[#22FF88]">{displayPoints}</strong>
+                      <strong className="font-mono text-[#22FF88] tabular-nums">{displayPoints}</strong>
                       {myRank ? ` · Peringkat sementara #${myRank}` : ''}
                     </p>
                   </div>
                 </section>
 
-                <section className="rounded-xl border border-[#1B2F23] bg-[#0B120E] p-5 space-y-4">
-                  <h3 className="text-lg font-bold text-[#E6F4EC]">
-                    Peringkat Kelompok Saat Ini
-                  </h3>
-                  <div className="divide-y divide-[#17281E]">
+                <section className="rounded-2xl border border-[#1B2A21] bg-[#0B110D] overflow-hidden">
+                  <div className="px-5 sm:px-6 py-4 border-b border-[#17231C]">
+                    <h3 className="text-base font-bold text-[#E8F3EC]">
+                      Peringkat Kelompok Saat Ini
+                    </h3>
+                  </div>
+                  <div className="divide-y divide-[#17231C]">
                     {rankedLeaderboard.map((g, idx) => {
                       const isMe = g.id === savedAuth.groupId;
                       return (
                         <div
                           key={g.id}
-                          className={`py-3 flex items-center justify-between gap-4 ${
-                            isMe ? 'text-[#22FF88]' : 'text-[#E6F4EC]'
+                          className={`px-5 sm:px-6 py-3.5 flex items-center justify-between gap-4 ${
+                            isMe ? 'bg-[#0C1911] text-[#22FF88]' : 'text-[#E8F3EC]'
                           }`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
@@ -1124,36 +1201,38 @@ export function PlayerTerminal() {
               </div>
             ) : (
               /* ACTIVE MISSION TERMINAL */
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <div className="lg:col-span-7 space-y-5">
                   {/* Paused / Ended Banner */}
                   {sessionDoc?.status === 'paused' && (
-                    <div className="p-4 rounded-xl border border-[#FFB020]/50 bg-[#FFB020]/10 text-[#FFD07A] text-sm font-medium">
+                    <div className="p-4 rounded-xl border border-[#FFB020]/50 bg-[#1B1408] text-[#FFD07A] text-sm font-medium">
                       Sesi sedang dijeda oleh admin. Tunggu hingga admin melanjutkan sesi.
                     </div>
                   )}
                   {sessionDoc?.status === 'ended' && (
-                    <div className="p-4 rounded-xl border border-[#FF3B5C]/50 bg-[#FF3B5C]/10 text-[#FF9BAE] text-sm font-medium">
+                    <div className="p-4 rounded-xl border border-[#FF3B5C]/50 bg-[#1B0B0F] text-[#FF9BAE] text-sm font-medium">
                       Sesi telah diakhiri oleh admin. Terima kasih telah berpartisipasi!
                     </div>
                   )}
                   {timeExpiredLock && (
-                    <div className="p-4 rounded-xl border border-[#FF3B5C]/50 bg-[#FF3B5C]/10 text-[#FF9BAE] text-sm font-medium">
+                    <div className="p-4 rounded-xl border border-[#FF3B5C]/50 bg-[#1B0B0F] text-[#FF9BAE] text-sm font-medium">
                       Waktu sesi telah habis. Pengiriman kode dikunci kecuali mendapat Kunci Darurat dari admin.
                     </div>
                   )}
 
                   {/* Sheet Target & Key Form */}
-                  <section className="rounded-xl border border-[#1B2F23] bg-[#0B120E] p-5 sm:p-7 space-y-6">
-                    <div className="flex items-center justify-between text-xs font-mono text-[#8AA899]">
-                      <span>TAHAP {currentSheetNum} DARI {totalSheets}</span>
-                      <span>TERSEDIA DI RUANGAN</span>
+                  <section className="rounded-2xl border border-[#1B2A21] bg-[#0B110D] p-5 sm:p-7 space-y-6">
+                    <div className="flex items-center justify-between text-xs text-[#8AA396] pb-3 border-b border-[#17231C]">
+                      <span className="font-mono tabular-nums">
+                        Tahap {currentSheetNum} dari {totalSheets}
+                      </span>
+                      <span>Tersedia di ruangan</span>
                     </div>
 
                     {privateState?.currentSheetCode ? (
                       <TypewriterCode code={privateState.currentSheetCode} />
                     ) : (
-                      <div className="py-6 text-center font-mono text-sm text-[#8AA899]">
+                      <div className="py-6 text-center font-mono text-sm text-[#8AA396]">
                         Memuat kode lembar...
                       </div>
                     )}
@@ -1162,9 +1241,9 @@ export function PlayerTerminal() {
                       <div className="space-y-1.5">
                         <label
                           htmlFor="key-input"
-                          className="block font-mono text-xs tracking-wider text-[#8AA899]"
+                          className="block text-xs font-medium text-[#8AA396]"
                         >
-                          MASUKKAN KODE KUNCI
+                          Masukkan Kode Kunci
                         </label>
                         <input
                           id="key-input"
@@ -1173,16 +1252,16 @@ export function PlayerTerminal() {
                           autoCapitalize="characters"
                           value={answerInput}
                           onChange={(e) => setAnswerInput(e.target.value)}
-                          placeholder="Contoh: 231 atau 3-2019-12 atau LOCK"
+                          placeholder="Contoh: 145 atau 7-2024-09 atau OPEN"
                           disabled={
                             submitting ||
                             sessionDoc?.status === 'paused' ||
                             sessionDoc?.status === 'ended' ||
                             timeExpiredLock
                           }
-                          className="w-full min-h-[54px] px-4 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-xl tracking-wider text-center text-[#E6F4EC] placeholder:text-[#496354] placeholder:text-sm placeholder:tracking-normal focus:outline-none focus:border-[#22FF88] disabled:opacity-50"
+                          className="w-full min-h-[54px] px-4 rounded-xl bg-[#060907] border border-[#1E3126] font-mono text-xl tracking-wider text-center text-[#E8F3EC] placeholder:text-[#4C6557] placeholder:text-sm placeholder:tracking-normal focus:outline-none focus:border-[#22FF88] disabled:opacity-50"
                         />
-                        <p className="text-xs text-[#8AA899] text-center">
+                        <p className="text-xs text-[#8AA396] text-center">
                           Huruf besar/kecil, spasi, dan tanda strip (-) otomatis diabaikan.
                         </p>
                       </div>
@@ -1201,9 +1280,9 @@ export function PlayerTerminal() {
                           sessionDoc?.status !== 'running' ||
                           timeExpiredLock
                         }
-                        className={`w-full min-h-[56px] px-6 py-3.5 rounded-lg font-bold text-base sm:text-lg inline-flex items-center justify-center gap-2.5 transition-all cursor-pointer ${
+                        className={`w-full min-h-[56px] px-6 py-3.5 rounded-xl font-bold text-base sm:text-lg inline-flex items-center justify-center gap-2.5 transition-all cursor-pointer ${
                           cooldownSec > 0
-                            ? 'bg-[#2A1217] border border-[#FF3B5C]/50 text-[#FF9BAE] cursor-not-allowed'
+                            ? 'bg-[#261115] border border-[#FF3B5C]/45 text-[#FF9BAE] cursor-not-allowed'
                             : 'bg-[#22FF88] text-[#041209] hover:bg-[#3EFF99] active:scale-[0.99] disabled:opacity-50'
                         }`}
                       >
@@ -1227,24 +1306,24 @@ export function PlayerTerminal() {
 
                 {/* Right Column: Hints & Emergency Keys */}
                 <div className="lg:col-span-5 space-y-5">
-                  <section className="rounded-xl border border-[#1B2F23] bg-[#0B120E] p-5 space-y-4">
-                    <div className="space-y-1">
-                      <h2 className="text-base font-bold text-[#E6F4EC]">
+                  <section className="rounded-2xl border border-[#1B2A21] bg-[#0B110D] p-5 sm:p-6 space-y-4">
+                    <div className="space-y-1 pb-3 border-b border-[#17231C]">
+                      <h2 className="text-base font-bold text-[#E8F3EC]">
                         Bantuan Admin
                       </h2>
-                      <p className="text-xs text-[#8AA899]">
+                      <p className="text-xs leading-relaxed text-[#8AA396]">
                         Gunakan jika kelompok benar-benar buntu. Memerlukan persetujuan admin.
                       </p>
                     </div>
 
-                    {/* Unlocked Hint Display */}
+                    {/* Unlocked Hint Display (hairline callout, no extra box stack) */}
                     {unlockedHintForCurrent && (
-                      <div className="p-4 rounded-lg border border-[#22FF88]/40 bg-[#0D1F15] space-y-1">
-                        <p className="font-mono text-xs text-[#22FF88] flex items-center gap-1.5">
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>PETUNJUK TERBUKA</span>
+                      <div className="py-3 border-b border-[#17231C] space-y-1">
+                        <p className="text-xs font-semibold text-[#22FF88] flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 shrink-0" />
+                          <span>Petunjuk Terbuka</span>
                         </p>
-                        <p className="text-sm text-[#E6F4EC] font-medium">
+                        <p className="text-sm leading-relaxed text-[#E8F3EC] font-medium">
                           {unlockedHintForCurrent.hintText}
                         </p>
                       </div>
@@ -1252,10 +1331,10 @@ export function PlayerTerminal() {
 
                     {/* Unlocked Emergency Key Display */}
                     {unlockedEmergencyForCurrent && (
-                      <div className="p-4 rounded-lg border border-[#FFB020]/50 bg-[#1F1709] space-y-1.5">
-                        <p className="font-mono text-xs text-[#FFB020] flex items-center gap-1.5">
-                          <KeyRound className="w-4 h-4" />
-                          <span>KUNCI DARURAT DIBERIKAN</span>
+                      <div className="py-3 border-b border-[#17231C] space-y-1.5">
+                        <p className="text-xs font-semibold text-[#FFB020] flex items-center gap-1.5">
+                          <KeyRound className="w-4 h-4 shrink-0" />
+                          <span>Kunci Darurat Diberikan</span>
                         </p>
                         <p className="font-mono text-xl font-bold tracking-widest text-[#FFD07A]">
                           {unlockedEmergencyForCurrent.keyValue}
@@ -1273,10 +1352,10 @@ export function PlayerTerminal() {
                           sessionDoc?.status === 'ended'
                         }
                         onClick={() => handleRequestHelp('hint')}
-                        className="w-full min-h-[48px] px-4 py-2.5 rounded-lg border border-[#243B2E] bg-[#050907] hover:border-[#22FF88]/50 text-sm font-semibold text-[#E6F4EC] flex items-center justify-between gap-2 disabled:opacity-50 cursor-pointer"
+                        className="w-full min-h-[48px] px-4 py-2.5 rounded-xl border border-[#1E3126] bg-[#060907] hover:border-[#22FF88]/45 text-sm font-semibold text-[#E8F3EC] flex items-center justify-between gap-2 disabled:opacity-50 cursor-pointer transition-colors"
                       >
                         <span className="inline-flex items-center gap-2">
-                          <Lightbulb className="w-4 h-4 text-[#FFB020]" />
+                          <Lightbulb className="w-4 h-4 text-[#FFB020] shrink-0" />
                           <span>
                             {pendingHintReq
                               ? 'Menunggu admin...'
@@ -1285,7 +1364,7 @@ export function PlayerTerminal() {
                                 : 'Minta Petunjuk'}
                           </span>
                         </span>
-                        <span className="font-mono text-xs text-[#FFB020]">
+                        <span className="font-mono text-xs text-[#FFB020] tabular-nums">
                           {sessionDoc?.pointsHint ?? -3} poin
                         </span>
                       </button>
@@ -1299,10 +1378,10 @@ export function PlayerTerminal() {
                           sessionDoc?.status === 'ended'
                         }
                         onClick={() => handleRequestHelp('emergency')}
-                        className="w-full min-h-[48px] px-4 py-2.5 rounded-lg border border-[#243B2E] bg-[#050907] hover:border-[#FF3B5C]/50 text-sm font-semibold text-[#E6F4EC] flex items-center justify-between gap-2 disabled:opacity-50 cursor-pointer"
+                        className="w-full min-h-[48px] px-4 py-2.5 rounded-xl border border-[#1E3126] bg-[#060907] hover:border-[#FF3B5C]/45 text-sm font-semibold text-[#E8F3EC] flex items-center justify-between gap-2 disabled:opacity-50 cursor-pointer transition-colors"
                       >
                         <span className="inline-flex items-center gap-2">
-                          <KeyRound className="w-4 h-4 text-[#FF3B5C]" />
+                          <KeyRound className="w-4 h-4 text-[#FF3B5C] shrink-0" />
                           <span>
                             {pendingEmergencyReq
                               ? 'Menunggu admin...'
@@ -1311,7 +1390,7 @@ export function PlayerTerminal() {
                                 : 'Minta Kunci Darurat'}
                           </span>
                         </span>
-                        <span className="font-mono text-xs text-[#FF3B5C]">
+                        <span className="font-mono text-xs text-[#FF3B5C] tabular-nums">
                           {sessionDoc?.pointsEmergency ?? -5} poin
                         </span>
                       </button>
@@ -1335,7 +1414,7 @@ export function PlayerTerminal() {
                         </p>
                       )}
                     {helpMessage && (
-                      <p className="text-xs text-[#8AA899]">{helpMessage}</p>
+                      <p className="text-xs text-[#8AA396]">{helpMessage}</p>
                     )}
                   </section>
                 </div>
@@ -1343,30 +1422,32 @@ export function PlayerTerminal() {
             )}
 
             {/* Activity History */}
-            <section className="rounded-xl border border-[#1B2F23] bg-[#0B120E] p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-[#E6F4EC]">
+            <section className="rounded-2xl border border-[#1B2A21] bg-[#0B110D] overflow-hidden">
+              <div className="px-5 sm:px-6 py-4 border-b border-[#17231C] flex items-center justify-between">
+                <h3 className="text-base font-bold text-[#E8F3EC]">
                   Riwayat Aktivitas Kelompok
                 </h3>
-                <span className="font-mono text-xs text-[#8AA899]">
+                <span className="font-mono text-xs text-[#8AA396] tabular-nums">
                   {logs.length} catatan
                 </span>
               </div>
 
               {logs.length === 0 ? (
-                <p className="text-sm text-[#8AA899]">Belum ada aktivitas tercatat.</p>
+                <p className="px-5 sm:px-6 py-6 text-sm text-[#8AA396]">
+                  Belum ada aktivitas tercatat.
+                </p>
               ) : (
-                <div className="divide-y divide-[#17281E]">
+                <div className="divide-y divide-[#17231C]">
                   {logs.map((log) => (
                     <div
                       key={log.id}
-                      className="py-2.5 flex items-center justify-between gap-4 text-sm"
+                      className="px-5 sm:px-6 py-3 flex items-center justify-between gap-4 text-sm"
                     >
                       <div className="min-w-0">
-                        <p className="text-[#E6F4EC] font-medium truncate">
+                        <p className="text-[#E8F3EC] font-medium truncate">
                           {log.action}
                         </p>
-                        <p className="font-mono text-xs text-[#8AA899]">
+                        <p className="font-mono text-xs text-[#8AA396]">
                           {formatTimeWib(log.createdAtMs)}
                           {log.reason ? ` · ${log.reason}` : ''}
                         </p>
@@ -1377,7 +1458,7 @@ export function PlayerTerminal() {
                             ? 'text-[#22FF88]'
                             : log.delta < 0
                               ? 'text-[#FF3B5C]'
-                              : 'text-[#8AA899]'
+                              : 'text-[#8AA396]'
                         }`}
                       >
                         {log.delta > 0 ? `+${log.delta}` : log.delta}
@@ -1389,12 +1470,12 @@ export function PlayerTerminal() {
             </section>
 
             {/* Footer Leave Group */}
-            <div className="flex items-center justify-between pt-2 text-xs text-[#8AA899]">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-xs text-[#8AA396]">
               <div className="flex items-center gap-4">
-                <Link href="/layar" className="hover:text-[#22FF88]">
+                <Link href="/layar" className="hover:text-[#22FF88] transition-colors whitespace-nowrap shrink-0">
                   Layar Proyektor
                 </Link>
-                <Link href="/admin" className="hover:text-[#22FF88]">
+                <Link href="/admin" className="hover:text-[#22FF88] transition-colors whitespace-nowrap shrink-0">
                   Panel Admin
                 </Link>
               </div>
@@ -1402,7 +1483,7 @@ export function PlayerTerminal() {
                 <button
                   type="button"
                   onClick={() => setConfirmLeave(true)}
-                  className="inline-flex items-center gap-1.5 text-[#8AA899] hover:text-[#FF3B5C] min-h-[36px] px-2 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-[#8AA396] hover:text-[#FF3B5C] min-h-[36px] px-2 cursor-pointer transition-colors"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>Ganti Kelompok</span>
@@ -1413,14 +1494,14 @@ export function PlayerTerminal() {
                   <button
                     type="button"
                     onClick={handleLeaveGroup}
-                    className="px-2.5 py-1 rounded bg-[#FF3B5C] text-white font-semibold cursor-pointer"
+                    className="px-2.5 py-1 rounded-md bg-[#FF3B5C] text-white font-semibold cursor-pointer"
                   >
                     Ya
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirmLeave(false)}
-                    className="px-2.5 py-1 rounded border border-[#243B2E] text-[#E6F4EC] cursor-pointer"
+                    className="px-2.5 py-1 rounded-md border border-[#1E3126] text-[#E8F3EC] cursor-pointer"
                   >
                     Batal
                   </button>
