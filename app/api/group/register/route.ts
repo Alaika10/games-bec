@@ -61,6 +61,16 @@ export async function POST(request: Request) {
     const existingGroupsSnap = await getDocs(
       collection(serverDb, 'sessions', session.id, 'groups')
     );
+    const maxGroups = Math.min(8, Math.max(1, Number(session.maxGroups ?? 8)));
+    if (existingGroupsSnap.size >= maxGroups) {
+      return NextResponse.json(
+        {
+          error: `Kuota sesi sudah penuh (maksimal ${maxGroups} kelompok). Hubungi admin.`,
+        },
+        { status: 403 }
+      );
+    }
+
     const duplicateName = existingGroupsSnap.docs.some(
       (d) =>
         String(d.data().teamName || '').toLowerCase() === teamName.toLowerCase()

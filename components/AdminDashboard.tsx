@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
 import {
@@ -21,6 +21,9 @@ import {
   KeyRound,
   Lock,
   ExternalLink,
+  Volume2,
+  CheckCircle2,
+  ShieldAlert,
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType, testFirestoreConnection } from '@/lib/firebase';
 import {
@@ -29,7 +32,13 @@ import {
   formatTimeWib,
   normalizeAnswerKey,
 } from '@/lib/game-utils';
-import { AdminSessionPayload, SheetConfigItem } from '@/lib/types';
+import {
+  activateAudioEngine,
+  isAudioUnlocked,
+  playAdminCorrectSound,
+  playAdminWrongSound,
+} from '@/lib/sound';
+import { AdminSessionPayload, PointLogDoc, SheetConfigItem } from '@/lib/types';
 import { ProgressDots } from './ProgressDots';
 
 const ADMIN_STORAGE_KEY = 'hts_admin_auth_v1';
@@ -63,6 +72,17 @@ export function AdminDashboard() {
     type: 'ok' | 'err';
     text: string;
   } | null>(null);
+  const [audioReady, setAudioReady] = useState(() => isAudioUnlocked());
+  const [liveAlert, setLiveAlert] = useState<{
+    id: string;
+    kind: 'correct' | 'wrong';
+    title: string;
+    detail: string;
+  } | null>(null);
+
+  const seenLogIdsRef = useRef<Set<string>>(new Set());
+  const logsInitSessionRef = useRef<string>('');
+  const alertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Modals / Inline Forms
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -70,6 +90,7 @@ export function AdminDashboard() {
   const [newTitle, setNewTitle] = useState('HACK THE SYSTEM: Reading Escape Room');
   const [newPinInput, setNewPinInput] = useState('');
   const [newDurationMin, setNewDurationMin] = useState(85);
+  const [newMaxGroups, setNewMaxGroups] = useState(8);
 
   const [confirmAction, setConfirmAction] = useState<'end' | 'reset' | null>(null);
   const [confirmDeleteGroupId, setConfirmDeleteGroupId] = useState<string | null>(null);
@@ -85,6 +106,7 @@ export function AdminDashboard() {
   // Editable config form state
   const [draftTitle, setDraftTitle] = useState('');
   const [draftDurationMin, setDraftDurationMin] = useState(85);
+  const [draftMaxGroups, setDraftMaxGroups] = useState(8);
   const [draftNewPin, setDraftNewPin] = useState('');
   const [draftPoints, setDraftPoints] = useState({
     pointsCorrect: 10,
@@ -134,6 +156,21 @@ export function AdminDashboard() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    if (audioReady) return;
+    const unlockOnGesture = () => {
+      activateAudioEngine()
+        .then(() => setAudioReady(true))
+        .catch(() => {});
+    };
+    window.addEventListener('pointerdown', unlockOnGesture, { once: true });
+    window.addEventListener('keydown', unlockOnGesture, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlockOnGesture);
+      window.removeEventListener('keydown', unlockOnGesture);
+    };
+  }, [audioReady]);
+
   const fetchAdminState = useCallback(
     async (c: AdminCreds, populateDrafts = false) => {
       try {
@@ -157,6 +194,9 @@ export function AdminDashboard() {
         if (populateDrafts) {
           setDraftTitle(payload.session.title);
           setDraftDurationMin(Math.round(payload.session.durationSeconds / 60));
+          setDraftMaxGroups(
+            Math.min(8, Math.max(1, Number(payload.session.maxGroups ?? 8)))
+          );
           setDraftPoints({
             pointsCorrect: payload.session.pointsCorrect,
             pointsFastest: payload.session.pointsFastest,
@@ -174,7 +214,7 @@ export function AdminDashboard() {
     []
   );
 
-  // Realtime triggers for admin state
+  // Realtime triggers for admin state & sound notifications
   useEffect(() => {
     if (!creds) return;
     Promise.resolve().then(() => fetchAdminState(creds, true));
@@ -198,7 +238,57 @@ export function AdminDashboard() {
     );
     const unsubLogs = onSnapshot(
       collection(db, 'sessions', creds.sessionId, 'logs'),
-      () => fetchAdminState(creds, false),
+      (snap) => {
+        if (logsInitSessionRef.current !== creds.sessionId) {
+          seenLogIdsRef.current = new Set(snap.docs.map((d) => d.id));
+          logsInitSessionRef.current = creds.sessionId;
+        } else {
+          const addedLogs = snap
+            .docChanges()
+            .filter(
+              (ch) => ch.type === 'added' && !seenLogIdsRef.current.has(ch.doc.id)
+            )
+            .map((ch) => ({
+              id: ch.doc.id,
+              ...(ch.doc.data() as Omit<PointLogDoc, 'id'>),
+            }))
+            .sort((a, b) => a.createdAtMs - b.createdAtMs);
+
+          for (const logItem of addedLogs) {
+            seenLogIdsRef.current.add(logItem.id);
+            const isVaultLog = logItem.action === 'Kata final benar';
+            const isSheetCorrectLog =
+              logItem.action.startsWith('Kunci Lembar ') &&
+              logItem.action.endsWith(' benar');
+            const isWrongLog = logItem.action.startsWith('Kode salah');
+
+            if (isVaultLog || isSheetCorrectLog) {
+              playAdminCorrectSound(logItem.teamName, isVaultLog);
+              setLiveAlert({
+                id: logItem.id,
+                kind: 'correct',
+                title: isVaultLog
+                  ? `BRANKAS TERBUKA · ${logItem.teamName}`
+                  : `KUNCI BENAR · ${logItem.teamName}`,
+                detail: `${logItem.action} (+${logItem.delta} poin)`,
+              });
+              if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+              alertTimerRef.current = setTimeout(() => setLiveAlert(null), 5500);
+            } else if (isWrongLog) {
+              playAdminWrongSound(logItem.teamName);
+              setLiveAlert({
+                id: logItem.id,
+                kind: 'wrong',
+                title: `KODE SALAH · ${logItem.teamName}`,
+                detail: `${logItem.action} (${logItem.delta} poin)`,
+              });
+              if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+              alertTimerRef.current = setTimeout(() => setLiveAlert(null), 5500);
+            }
+          }
+        }
+        fetchAdminState(creds, false);
+      },
       (err) =>
         handleFirestoreError(err, OperationType.LIST, `sessions/${creds.sessionId}/logs`)
     );
@@ -208,8 +298,17 @@ export function AdminDashboard() {
       unsubGroups();
       unsubReqs();
       unsubLogs();
+      if (alertTimerRef.current) {
+        clearTimeout(alertTimerRef.current);
+        alertTimerRef.current = null;
+      }
     };
   }, [creds, fetchAdminState]);
+
+  const handleActivateAdminAudio = async () => {
+    await activateAudioEngine();
+    setAudioReady(true);
+  };
 
   const showToast = (type: 'ok' | 'err', text: string) => {
     setStatusNotice({ type, text });
@@ -219,6 +318,11 @@ export function AdminDashboard() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
+    if (!audioReady) {
+      activateAudioEngine()
+        .then(() => setAudioReady(true))
+        .catch(() => {});
+    }
     setLoginLoading(true);
     try {
       const res = await fetch('/api/admin/auth', {
@@ -535,7 +639,19 @@ export function AdminDashboard() {
             )}
           </div>
 
-          <div className="flex items-center gap-4 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={handleActivateAdminAudio}
+              className={`min-h-[38px] px-3 rounded-lg border font-mono text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                audioReady
+                  ? 'border-[#22FF88]/40 bg-[#0D1A12] text-[#22FF88] hover:bg-[#13261B]'
+                  : 'border-[#FFB020]/60 bg-[#1F1708] text-[#FFD07A] hover:bg-[#2A1F0B]'
+              }`}
+            >
+              <Volume2 className="w-3.5 h-3.5 shrink-0" />
+              <span>{audioReady ? 'Suara Notifikasi Aktif' : 'Aktifkan Suara'}</span>
+            </button>
             {adminData && (
               <Link
                 href={`/layar?kode=${adminData.session.sessionCode}`}
@@ -562,6 +678,39 @@ export function AdminDashboard() {
       </header>
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {liveAlert && (
+          <div
+            role="status"
+            className={`rounded-xl border p-4 flex items-center justify-between gap-4 ${
+              liveAlert.kind === 'correct'
+                ? 'border-[#22FF88] bg-[#0B2214] text-[#22FF88]'
+                : 'border-[#FF3B5C] bg-[#240B10] text-[#FF9BAE]'
+            }`}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              {liveAlert.kind === 'correct' ? (
+                <CheckCircle2 className="w-5 h-5 shrink-0 text-[#22FF88]" />
+              ) : (
+                <ShieldAlert className="w-5 h-5 shrink-0 text-[#FF3B5C]" />
+              )}
+              <div className="min-w-0">
+                <p className="font-mono text-sm font-extrabold tracking-wide truncate">
+                  {liveAlert.title}
+                </p>
+                <p className="text-xs text-[#E6F4EC] truncate">{liveAlert.detail}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setLiveAlert(null)}
+              aria-label="Tutup notifikasi"
+              className="min-h-[36px] min-w-[36px] rounded-lg text-[#8AA899] hover:text-[#E6F4EC] flex items-center justify-center shrink-0 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {statusNotice && (
           <div
             role="status"
@@ -601,7 +750,9 @@ export function AdminDashboard() {
                     </strong>
                   </span>
                   <span aria-hidden="true">·</span>
-                  <span>{adminData.groups.length} Kelompok</span>
+                  <span>
+                    {adminData.groups.length} / {adminData.session.maxGroups ?? 8} Kelompok
+                  </span>
                 </div>
                 <h1 className="text-xl sm:text-2xl font-bold text-[#E6F4EC]">
                   {adminData.session.title}
@@ -743,7 +894,9 @@ export function AdminDashboard() {
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>Kelompok ({adminData?.groups.length ?? 0})</span>
+            <span>
+              Kelompok ({adminData?.groups.length ?? 0}/{adminData?.session.maxGroups ?? 8})
+            </span>
           </button>
 
           <button
@@ -769,6 +922,9 @@ export function AdminDashboard() {
               if (adminData) {
                 setDraftTitle(adminData.session.title);
                 setDraftDurationMin(Math.round(adminData.session.durationSeconds / 60));
+                setDraftMaxGroups(
+                  Math.min(8, Math.max(1, Number(adminData.session.maxGroups ?? 8)))
+                );
                 setDraftPoints({
                   pointsCorrect: adminData.session.pointsCorrect,
                   pointsFastest: adminData.session.pointsFastest,
@@ -1139,7 +1295,7 @@ export function AdminDashboard() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-1.5">
                 <label className="block font-mono text-xs text-[#8AA899]">
                   JUDUL SESI
@@ -1162,6 +1318,23 @@ export function AdminDashboard() {
                   max={1440}
                   value={draftDurationMin}
                   onChange={(e) => setDraftDurationMin(Number(e.target.value))}
+                  className="w-full min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-sm text-[#E6F4EC]"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block font-mono text-xs text-[#8AA899]">
+                  MAKSIMAL KELOMPOK (1–8)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={8}
+                  value={draftMaxGroups}
+                  onChange={(e) =>
+                    setDraftMaxGroups(
+                      Math.min(8, Math.max(1, Number(e.target.value) || 1))
+                    )
+                  }
                   className="w-full min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-sm text-[#E6F4EC]"
                 />
               </div>
@@ -1287,6 +1460,7 @@ export function AdminDashboard() {
                   runSessionAction('update_config', {
                     title: draftTitle,
                     durationMinutes: draftDurationMin,
+                    maxGroups: draftMaxGroups,
                     newPin: draftNewPin,
                     ...draftPoints,
                     sheets: draftSheets,
@@ -1459,6 +1633,23 @@ export function AdminDashboard() {
                     />
                   </div>
                 </div>
+                <div className="space-y-1">
+                  <label className="block font-mono text-xs text-[#8AA899]">
+                    MAKSIMAL KELOMPOK (1–8)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={8}
+                    value={newMaxGroups}
+                    onChange={(e) =>
+                      setNewMaxGroups(
+                        Math.min(8, Math.max(1, Number(e.target.value) || 1))
+                      )
+                    }
+                    className="w-full min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-sm text-[#E6F4EC]"
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
@@ -1478,6 +1669,7 @@ export function AdminDashboard() {
                       title: newTitle,
                       adminPin: newPinInput || creds.pin,
                       durationMinutes: newDurationMin,
+                      maxGroups: newMaxGroups,
                     })
                   }
                   className="min-h-[44px] px-5 rounded-lg bg-[#22FF88] text-[#041209] font-bold text-sm cursor-pointer"

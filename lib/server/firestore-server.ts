@@ -83,6 +83,7 @@ export interface CreateSessionInput {
   title: string;
   adminPin: string;
   durationMinutes: number;
+  maxGroups?: number;
   sheets?: SheetConfigItem[];
 }
 
@@ -90,6 +91,7 @@ export async function createSessionRecord(input: CreateSessionInput): Promise<Se
   const now = Date.now();
   const sessionId = `ses_${input.sessionCode}_${now}`;
   const durationSeconds = Math.max(60, Math.min(86400, Math.round(input.durationMinutes * 60)));
+  const maxGroups = Math.max(1, Math.min(8, Math.round(Number(input.maxGroups ?? 8))));
 
   const sessionData: Omit<SessionDoc, 'id'> = {
     sessionCode: input.sessionCode,
@@ -106,6 +108,7 @@ export async function createSessionRecord(input: CreateSessionInput): Promise<Se
     pointsHint: -3,
     pointsEmergency: -5,
     totalSheets: 5,
+    maxGroups,
     lastEventId: '',
     lastEventType: 'none',
     lastEventTeam: '',

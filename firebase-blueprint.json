@@ -67,6 +67,10 @@
           "type": "integer",
           "description": "Number of reading sheets in the game (default 5)."
         },
+        "maxGroups": {
+          "type": "integer",
+          "description": "Maximum number of teams allowed in the session (1 to 8, default 8)."
+        },
         "lastEventId": {
           "type": "string",
           "maxLength": 64,

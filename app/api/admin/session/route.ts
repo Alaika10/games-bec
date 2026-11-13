@@ -56,6 +56,7 @@ export async function POST(request: Request) {
       const newTitle = String(payload.title ?? 'HACK THE SYSTEM: Reading Escape Room').trim();
       const newPin = String(payload.adminPin ?? pin).trim();
       const durationMinutes = Number(payload.durationMinutes ?? 85);
+      const rawMaxGroups = Number(payload.maxGroups ?? 8);
 
       if (!/^\d{4}$/.test(newCode)) {
         return NextResponse.json(
@@ -66,6 +67,12 @@ export async function POST(request: Request) {
       if (newPin.length < 4 || newPin.length > 20) {
         return NextResponse.json(
           { error: 'PIN admin minimal 4 karakter.' },
+          { status: 400 }
+        );
+      }
+      if (!Number.isFinite(rawMaxGroups) || rawMaxGroups < 1 || rawMaxGroups > 8) {
+        return NextResponse.json(
+          { error: 'Maksimal kelompok harus antara 1 sampai 8.' },
           { status: 400 }
         );
       }
@@ -82,6 +89,7 @@ export async function POST(request: Request) {
         title: newTitle,
         adminPin: newPin,
         durationMinutes: Number.isFinite(durationMinutes) ? durationMinutes : 85,
+        maxGroups: Math.round(rawMaxGroups),
         sheets: DEFAULT_SEED_SHEETS,
       });
 
@@ -289,6 +297,15 @@ export async function POST(request: Request) {
       const durationMinutes = Number(payload.durationMinutes ?? Math.round(session.durationSeconds / 60));
       const newDurationSeconds = Math.max(60, Math.min(86400, Math.round(durationMinutes * 60)));
 
+      const rawMaxGroups = Number(payload.maxGroups ?? session.maxGroups ?? 8);
+      if (!Number.isFinite(rawMaxGroups) || rawMaxGroups < 1 || rawMaxGroups > 8) {
+        return NextResponse.json(
+          { error: 'Maksimal kelompok harus antara 1 sampai 8.' },
+          { status: 400 }
+        );
+      }
+      const maxGroups = Math.round(rawMaxGroups);
+
       const pointsCorrect = Math.max(0, Math.min(1000, Math.round(Number(payload.pointsCorrect ?? session.pointsCorrect))));
       const pointsFastest = Math.max(0, Math.min(1000, Math.round(Number(payload.pointsFastest ?? session.pointsFastest))));
       const pointsFinalFirst = Math.max(0, Math.min(1000, Math.round(Number(payload.pointsFinalFirst ?? session.pointsFinalFirst))));
@@ -318,6 +335,7 @@ export async function POST(request: Request) {
       const sessionUpdate: Record<string, unknown> = {
         title: newTitle,
         durationSeconds: newDurationSeconds,
+        maxGroups,
         pointsCorrect,
         pointsFastest,
         pointsFinalFirst,

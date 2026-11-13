@@ -45,7 +45,7 @@ service cloud.firestore {
         && data.keys().hasOnly([
           'sessionCode', 'title', 'status', 'durationSeconds', 'remainingSecondsAtPause',
           'startedAtMs', 'endedAtMs', 'pointsCorrect', 'pointsFastest', 'pointsFinalFirst',
-          'pointsWrong', 'pointsHint', 'pointsEmergency', 'totalSheets',
+          'pointsWrong', 'pointsHint', 'pointsEmergency', 'totalSheets', 'maxGroups',
           'lastEventId', 'lastEventType', 'lastEventTeam', 'lastEventMessage',
           'lastEventAtMs', 'createdAtMs', 'updatedAtMs'
         ])
@@ -63,6 +63,7 @@ service cloud.firestore {
         && data.pointsHint is int && data.pointsHint >= -1000 && data.pointsHint <= 0
         && data.pointsEmergency is int && data.pointsEmergency >= -1000 && data.pointsEmergency <= 0
         && data.totalSheets is int && data.totalSheets >= 1 && data.totalSheets <= 10
+        && (!('maxGroups' in data) || (data.maxGroups is int && data.maxGroups >= 1 && data.maxGroups <= 8))
         && data.lastEventId is string && data.lastEventId.size() <= 64
         && data.lastEventType is string && data.lastEventType in ['none', 'unlock', 'vault', 'status']
         && data.lastEventTeam is string && data.lastEventTeam.size() <= 50

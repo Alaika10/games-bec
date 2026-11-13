@@ -19,6 +19,7 @@ export interface SessionDoc {
   pointsHint: number;
   pointsEmergency: number;
   totalSheets: number;
+  maxGroups?: number;
   lastEventId: string;
   lastEventType: LastEventType;
   lastEventTeam: string;

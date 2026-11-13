@@ -12,7 +12,6 @@ import {
 } from 'firebase/firestore';
 import {
   Volume2,
-  VolumeX,
   Plus,
   Trash2,
   Send,
@@ -34,12 +33,10 @@ import {
 } from '@/lib/game-utils';
 import {
   activateAudioEngine,
-  isAudioMuted,
   isAudioUnlocked,
   playCorrectKeySound,
   playVaultOpenedFanfare,
   playWrongKeySound,
-  setAudioMuted,
 } from '@/lib/sound';
 import {
   GroupDoc,
@@ -62,9 +59,8 @@ interface SavedSessionAuth {
 const STORAGE_KEY = 'hts_player_session_v1';
 
 export function PlayerTerminal() {
-  // Audio state
+  // Audio state (sound-only mode, no mute)
   const [audioReady, setAudioReady] = useState(() => isAudioUnlocked());
-  const [muted, setMuted] = useState(() => isAudioMuted());
 
   // Entry / auth state
   const [entryMode, setEntryMode] = useState<'register' | 'rejoin'>('register');
@@ -354,16 +350,6 @@ export function PlayerTerminal() {
   const handleActivateAudio = async () => {
     await activateAudioEngine();
     setAudioReady(true);
-    if (muted) {
-      setAudioMuted(false);
-      setMuted(false);
-    }
-  };
-
-  const handleToggleMute = () => {
-    const next = !muted;
-    setAudioMuted(next);
-    setMuted(next);
   };
 
   const handleAddMember = () => {
@@ -393,6 +379,12 @@ export function PlayerTerminal() {
     if (cleanedMembers.length < 2 || cleanedMembers.length > 5) {
       setAuthError('Masukkan minimal 2 dan maksimal 5 nama anggota.');
       return;
+    }
+
+    if (!audioReady) {
+      activateAudioEngine()
+        .then(() => setAudioReady(true))
+        .catch(() => {});
     }
 
     setAuthLoading(true);
@@ -438,6 +430,12 @@ export function PlayerTerminal() {
     if (!/^[a-zA-Z0-9]{4}$/.test(groupCodeInput.trim())) {
       setAuthError('Masukkan Kode Kelompok 4 karakter.');
       return;
+    }
+
+    if (!audioReady) {
+      activateAudioEngine()
+        .then(() => setAudioReady(true))
+        .catch(() => {});
     }
 
     setAuthLoading(true);
@@ -673,19 +671,21 @@ export function PlayerTerminal() {
               </nav>
             )}
 
-            <button
-              type="button"
-              onClick={handleToggleMute}
-              aria-label={muted ? 'Nyalakan suara' : 'Bisukan suara'}
-              className={`min-h-[44px] px-3.5 rounded-lg border font-mono text-xs font-semibold inline-flex items-center gap-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                muted
-                  ? 'border-[#FF3B5C]/50 bg-[#FF3B5C]/10 text-[#FF3B5C]'
-                  : 'border-[#22FF88]/40 bg-[#0D1A12] text-[#22FF88] hover:bg-[#13261B]'
-              }`}
-            >
-              {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-              <span>{muted ? 'Bisu' : 'Suara'}</span>
-            </button>
+            {audioReady ? (
+              <span className="min-h-[44px] px-3 inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-[#22FF88] whitespace-nowrap shrink-0">
+                <Volume2 className="w-4 h-4 shrink-0" />
+                <span>Mode Suara</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleActivateAudio}
+                className="min-h-[44px] px-3.5 rounded-lg border border-[#22FF88]/40 bg-[#0D1A12] text-[#22FF88] hover:bg-[#13261B] font-mono text-xs font-semibold inline-flex items-center gap-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <Volume2 className="w-4 h-4 shrink-0" />
+                <span>Aktifkan Suara</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -707,7 +707,7 @@ export function PlayerTerminal() {
                 Masuk ke Sesi Misi Membaca
               </h1>
               <p className="text-sm sm:text-base text-[#8AA899]">
-                Satu HP per kelompok (2–5 anggota). Minta Kode Sesi 4 digit dari panitia atau admin.
+                Satu HP per kelompok (2–5 anggota, maks. 7–8 kelompok per sesi). Minta Kode Sesi 4 digit dari panitia atau admin.
               </p>
             </div>
 

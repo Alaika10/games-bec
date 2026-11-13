@@ -40,9 +40,10 @@ function playTone(
   startTimeOffset: number,
   duration: number,
   type: OscillatorType = 'triangle',
-  volume = 0.22
+  volume = 0.22,
+  ignoreMute = false
 ): void {
-  if (mutedState) return;
+  if (mutedState && !ignoreMute) return;
   const ctx = getAudioContext();
   if (!ctx) return;
   if (ctx.state === 'suspended') {
@@ -65,8 +66,8 @@ function playTone(
   osc.stop(now + duration + 0.02);
 }
 
-function speakIndonesian(text: string): void {
-  if (mutedState || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+function speakIndonesian(text: string, ignoreMute = false): void {
+  if ((mutedState && !ignoreMute) || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   try {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
@@ -177,4 +178,35 @@ export function playProjectorBannerSound(isVault = false): void {
     playTone(659.25, 0, 0.1, 'sine', 0.18);
     playTone(987.77, 0.11, 0.2, 'sine', 0.22);
   }
+}
+
+export function playAdminCorrectSound(teamName: string, isVault = false): void {
+  if (isVault) {
+    playTone(523.25, 0, 0.12, 'triangle', 0.22, true);
+    playTone(659.25, 0.11, 0.12, 'triangle', 0.22, true);
+    playTone(783.99, 0.22, 0.14, 'triangle', 0.24, true);
+    playTone(1046.5, 0.34, 0.32, 'sine', 0.26, true);
+  } else {
+    playTone(659.25, 0, 0.1, 'sine', 0.2, true);
+    playTone(880, 0.1, 0.12, 'sine', 0.22, true);
+    playTone(1174.66, 0.21, 0.22, 'sine', 0.24, true);
+  }
+
+  const safeName = teamName.trim() || 'Kelompok';
+  setTimeout(() => {
+    speakIndonesian(
+      isVault ? `${safeName} membuka brankas!` : `${safeName}, kunci benar!`,
+      true
+    );
+  }, 240);
+}
+
+export function playAdminWrongSound(teamName: string): void {
+  playTone(220, 0, 0.14, 'sawtooth', 0.18, true);
+  playTone(155, 0.16, 0.26, 'sawtooth', 0.2, true);
+
+  const safeName = teamName.trim() || 'Kelompok';
+  setTimeout(() => {
+    speakIndonesian(`${safeName}, kode salah!`, true);
+  }, 260);
 }
