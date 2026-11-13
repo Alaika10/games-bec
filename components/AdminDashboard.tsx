@@ -90,7 +90,7 @@ export function AdminDashboard() {
   const [newTitle, setNewTitle] = useState('HACK THE SYSTEM: Reading Escape Room');
   const [newPinInput, setNewPinInput] = useState('');
   const [newDurationMin, setNewDurationMin] = useState(85);
-  const [newMaxGroups, setNewMaxGroups] = useState(8);
+  const [newMaxGroups, setNewMaxGroups] = useState(20);
 
   const [confirmAction, setConfirmAction] = useState<'end' | 'reset' | null>(null);
   const [confirmDeleteGroupId, setConfirmDeleteGroupId] = useState<string | null>(null);
@@ -106,7 +106,7 @@ export function AdminDashboard() {
   // Editable config form state
   const [draftTitle, setDraftTitle] = useState('');
   const [draftDurationMin, setDraftDurationMin] = useState(85);
-  const [draftMaxGroups, setDraftMaxGroups] = useState(8);
+  const [draftMaxGroups, setDraftMaxGroups] = useState(20);
   const [draftNewPin, setDraftNewPin] = useState('');
   const [draftPoints, setDraftPoints] = useState({
     pointsCorrect: 10,
@@ -195,7 +195,7 @@ export function AdminDashboard() {
           setDraftTitle(payload.session.title);
           setDraftDurationMin(Math.round(payload.session.durationSeconds / 60));
           setDraftMaxGroups(
-            Math.min(8, Math.max(1, Number(payload.session.maxGroups ?? 8)))
+            Math.min(50, Math.max(1, Number(payload.session.maxGroups ?? 20)))
           );
           setDraftPoints({
             pointsCorrect: payload.session.pointsCorrect,
@@ -751,7 +751,7 @@ export function AdminDashboard() {
                   </span>
                   <span aria-hidden="true">·</span>
                   <span>
-                    {adminData.groups.length} / {adminData.session.maxGroups ?? 8} Kelompok
+                    {adminData.groups.length} / {adminData.session.maxGroups ?? 20} Kelompok
                   </span>
                 </div>
                 <h1 className="text-xl sm:text-2xl font-bold text-[#E6F4EC]">
@@ -895,7 +895,7 @@ export function AdminDashboard() {
           >
             <Users className="w-4 h-4" />
             <span>
-              Kelompok ({adminData?.groups.length ?? 0}/{adminData?.session.maxGroups ?? 8})
+              Kelompok ({adminData?.groups.length ?? 0}/{adminData?.session.maxGroups ?? 20})
             </span>
           </button>
 
@@ -923,7 +923,7 @@ export function AdminDashboard() {
                 setDraftTitle(adminData.session.title);
                 setDraftDurationMin(Math.round(adminData.session.durationSeconds / 60));
                 setDraftMaxGroups(
-                  Math.min(8, Math.max(1, Number(adminData.session.maxGroups ?? 8)))
+                  Math.min(50, Math.max(1, Number(adminData.session.maxGroups ?? 20)))
                 );
                 setDraftPoints({
                   pointsCorrect: adminData.session.pointsCorrect,
@@ -1323,16 +1323,16 @@ export function AdminDashboard() {
               </div>
               <div className="space-y-1.5">
                 <label className="block font-mono text-xs text-[#8AA899]">
-                  MAKSIMAL KELOMPOK (1–8)
+                  MAKSIMAL KELOMPOK (1–50)
                 </label>
                 <input
                   type="number"
                   min={1}
-                  max={8}
+                  max={50}
                   value={draftMaxGroups}
                   onChange={(e) =>
                     setDraftMaxGroups(
-                      Math.min(8, Math.max(1, Number(e.target.value) || 1))
+                      Math.min(50, Math.max(1, Number(e.target.value) || 1))
                     )
                   }
                   className="w-full min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-sm text-[#E6F4EC]"
@@ -1635,16 +1635,16 @@ export function AdminDashboard() {
                 </div>
                 <div className="space-y-1">
                   <label className="block font-mono text-xs text-[#8AA899]">
-                    MAKSIMAL KELOMPOK (1–8)
+                    MAKSIMAL KELOMPOK (1–50)
                   </label>
                   <input
                     type="number"
                     min={1}
-                    max={8}
+                    max={50}
                     value={newMaxGroups}
                     onChange={(e) =>
                       setNewMaxGroups(
-                        Math.min(8, Math.max(1, Number(e.target.value) || 1))
+                        Math.min(50, Math.max(1, Number(e.target.value) || 1))
                       )
                     }
                     className="w-full min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] font-mono text-sm text-[#E6F4EC]"

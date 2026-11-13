@@ -91,7 +91,7 @@ export async function createSessionRecord(input: CreateSessionInput): Promise<Se
   const now = Date.now();
   const sessionId = `ses_${input.sessionCode}_${now}`;
   const durationSeconds = Math.max(60, Math.min(86400, Math.round(input.durationMinutes * 60)));
-  const maxGroups = Math.max(1, Math.min(8, Math.round(Number(input.maxGroups ?? 8))));
+  const maxGroups = Math.max(1, Math.min(50, Math.round(Number(input.maxGroups ?? 20))));
 
   const sessionData: Omit<SessionDoc, 'id'> = {
     sessionCode: input.sessionCode,

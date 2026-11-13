@@ -69,7 +69,7 @@
         },
         "maxGroups": {
           "type": "integer",
-          "description": "Maximum number of teams allowed in the session (1 to 8, default 8)."
+          "description": "Maximum number of teams allowed in the session (1 to 50, default 20)."
         },
         "lastEventId": {
           "type": "string",
@@ -199,7 +199,7 @@
         },
         "members": {
           "type": "array",
-          "description": "2 to 5 team member names."
+          "description": "2 to 20 team member names (supports 7+ members per team)."
         },
         "points": {
           "type": "integer",

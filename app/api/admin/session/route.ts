@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       const newTitle = String(payload.title ?? 'HACK THE SYSTEM: Reading Escape Room').trim();
       const newPin = String(payload.adminPin ?? pin).trim();
       const durationMinutes = Number(payload.durationMinutes ?? 85);
-      const rawMaxGroups = Number(payload.maxGroups ?? 8);
+      const rawMaxGroups = Number(payload.maxGroups ?? 20);
 
       if (!/^\d{4}$/.test(newCode)) {
         return NextResponse.json(
@@ -70,9 +70,9 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      if (!Number.isFinite(rawMaxGroups) || rawMaxGroups < 1 || rawMaxGroups > 8) {
+      if (!Number.isFinite(rawMaxGroups) || rawMaxGroups < 1 || rawMaxGroups > 50) {
         return NextResponse.json(
-          { error: 'Maksimal kelompok harus antara 1 sampai 8.' },
+          { error: 'Maksimal kelompok harus antara 1 sampai 50.' },
           { status: 400 }
         );
       }
@@ -297,10 +297,10 @@ export async function POST(request: Request) {
       const durationMinutes = Number(payload.durationMinutes ?? Math.round(session.durationSeconds / 60));
       const newDurationSeconds = Math.max(60, Math.min(86400, Math.round(durationMinutes * 60)));
 
-      const rawMaxGroups = Number(payload.maxGroups ?? session.maxGroups ?? 8);
-      if (!Number.isFinite(rawMaxGroups) || rawMaxGroups < 1 || rawMaxGroups > 8) {
+      const rawMaxGroups = Number(payload.maxGroups ?? session.maxGroups ?? 20);
+      if (!Number.isFinite(rawMaxGroups) || rawMaxGroups < 1 || rawMaxGroups > 50) {
         return NextResponse.json(
-          { error: 'Maksimal kelompok harus antara 1 sampai 8.' },
+          { error: 'Maksimal kelompok harus antara 1 sampai 50.' },
           { status: 400 }
         );
       }

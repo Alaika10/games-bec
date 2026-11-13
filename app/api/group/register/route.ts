@@ -36,9 +36,9 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    if (members.length < 2 || members.length > 5) {
+    if (members.length < 2 || members.length > 20) {
       return NextResponse.json(
-        { error: 'Masukkan 2 sampai 5 nama anggota kelompok.' },
+        { error: 'Masukkan 2 sampai 20 nama anggota kelompok.' },
         { status: 400 }
       );
     }
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     const existingGroupsSnap = await getDocs(
       collection(serverDb, 'sessions', session.id, 'groups')
     );
-    const maxGroups = Math.min(8, Math.max(1, Number(session.maxGroups ?? 8)));
+    const maxGroups = Math.min(50, Math.max(1, Number(session.maxGroups ?? 20)));
     if (existingGroupsSnap.size >= maxGroups) {
       return NextResponse.json(
         {

@@ -66,7 +66,15 @@ export function PlayerTerminal() {
   const [entryMode, setEntryMode] = useState<'register' | 'rejoin'>('register');
   const [sessionCodeInput, setSessionCodeInput] = useState('');
   const [teamNameInput, setTeamNameInput] = useState('');
-  const [membersInput, setMembersInput] = useState<string[]>(['', '']);
+  const [membersInput, setMembersInput] = useState<string[]>([
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+  ]);
   const [groupCodeInput, setGroupCodeInput] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -353,7 +361,7 @@ export function PlayerTerminal() {
   };
 
   const handleAddMember = () => {
-    if (membersInput.length < 5) {
+    if (membersInput.length < 20) {
       setMembersInput((prev) => [...prev, '']);
     }
   };
@@ -376,8 +384,8 @@ export function PlayerTerminal() {
       setAuthError('Masukkan nama kelompok.');
       return;
     }
-    if (cleanedMembers.length < 2 || cleanedMembers.length > 5) {
-      setAuthError('Masukkan minimal 2 dan maksimal 5 nama anggota.');
+    if (cleanedMembers.length < 2 || cleanedMembers.length > 20) {
+      setAuthError('Masukkan minimal 2 dan maksimal 20 nama anggota.');
       return;
     }
 
@@ -707,7 +715,7 @@ export function PlayerTerminal() {
                 Masuk ke Sesi Misi Membaca
               </h1>
               <p className="text-sm sm:text-base text-[#8AA899]">
-                Satu HP per kelompok (2–5 anggota, maks. 7–8 kelompok per sesi). Minta Kode Sesi 4 digit dari panitia atau admin.
+                Satu HP per kelompok (dapat diisi 7 anggota atau lebih). Minta Kode Sesi 4 digit dari panitia atau admin.
               </p>
             </div>
 
@@ -797,23 +805,23 @@ export function PlayerTerminal() {
                   </div>
 
                   <div className="space-y-2.5">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-mono tracking-wider text-[#8AA899]">
-                        NAMA ANGGOTA (2–5 ORANG)
+                        NAMA ANGGOTA (MIN. 2 · BISA 7+ ORANG)
                       </span>
-                      {membersInput.length < 5 && (
+                      {membersInput.length < 20 && (
                         <button
                           type="button"
                           onClick={handleAddMember}
-                          className="min-h-[36px] px-2.5 rounded-md border border-[#243B2E] text-xs font-semibold text-[#22FF88] hover:bg-[#13261B] inline-flex items-center gap-1 cursor-pointer"
+                          className="min-h-[36px] px-2.5 rounded-md border border-[#243B2E] text-xs font-semibold text-[#22FF88] hover:bg-[#13261B] inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
                         >
                           <Plus className="w-3.5 h-3.5" />
-                          <span>Tambah</span>
+                          <span>Tambah Anggota</span>
                         </button>
                       )}
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {membersInput.map((member, idx) => (
                         <div key={idx} className="flex items-center gap-2">
                           <input
@@ -825,8 +833,8 @@ export function PlayerTerminal() {
                               next[idx] = e.target.value;
                               setMembersInput(next);
                             }}
-                            placeholder={`Anggota ${idx + 1}`}
-                            className="flex-1 min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] text-sm text-[#E6F4EC] placeholder:text-[#496354] focus:outline-none focus:border-[#22FF88]"
+                            placeholder={`Anggota ${idx + 1}${idx >= 2 ? ' (opsional)' : ''}`}
+                            className="flex-1 min-w-0 min-h-[44px] px-3.5 rounded-lg bg-[#050907] border border-[#243B2E] text-sm text-[#E6F4EC] placeholder:text-[#496354] focus:outline-none focus:border-[#22FF88]"
                             required={idx < 2}
                           />
                           {membersInput.length > 2 && (
@@ -834,7 +842,7 @@ export function PlayerTerminal() {
                               type="button"
                               onClick={() => handleRemoveMember(idx)}
                               aria-label={`Hapus anggota ${idx + 1}`}
-                              className="min-h-[44px] min-w-[44px] rounded-lg border border-[#243B2E] text-[#8AA899] hover:text-[#FF3B5C] hover:border-[#FF3B5C]/40 flex items-center justify-center cursor-pointer"
+                              className="min-h-[44px] min-w-[44px] rounded-lg border border-[#243B2E] text-[#8AA899] hover:text-[#FF3B5C] hover:border-[#FF3B5C]/40 flex items-center justify-center shrink-0 cursor-pointer"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>

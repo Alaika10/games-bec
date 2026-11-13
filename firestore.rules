@@ -63,7 +63,7 @@ service cloud.firestore {
         && data.pointsHint is int && data.pointsHint >= -1000 && data.pointsHint <= 0
         && data.pointsEmergency is int && data.pointsEmergency >= -1000 && data.pointsEmergency <= 0
         && data.totalSheets is int && data.totalSheets >= 1 && data.totalSheets <= 10
-        && (!('maxGroups' in data) || (data.maxGroups is int && data.maxGroups >= 1 && data.maxGroups <= 8))
+        && (!('maxGroups' in data) || (data.maxGroups is int && data.maxGroups >= 1 && data.maxGroups <= 50))
         && data.lastEventId is string && data.lastEventId.size() <= 64
         && data.lastEventType is string && data.lastEventType in ['none', 'unlock', 'vault', 'status']
         && data.lastEventTeam is string && data.lastEventTeam.size() <= 50
@@ -104,7 +104,7 @@ service cloud.firestore {
           'cooldownUntilMs', 'lastSubmitAtMs', 'createdAtMs', 'updatedAtMs'
         ])
         && data.teamName is string && data.teamName.size() >= 1 && data.teamName.size() <= 50
-        && data.members is list && data.members.size() >= 2 && data.members.size() <= 5
+        && data.members is list && data.members.size() >= 2 && data.members.size() <= 20
         && data.members[0] is string && data.members[0].size() >= 1 && data.members[0].size() <= 40
         && data.points is int && data.points >= 0 && data.points <= 100000
         && data.currentSheet is int && data.currentSheet >= 1 && data.currentSheet <= 6
